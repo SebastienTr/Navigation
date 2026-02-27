@@ -1,0 +1,116 @@
+-- Laurine Navigator — Seed Data
+-- This file contains TEMPLATE data that the onboarding wizard can use.
+-- In the multi-user architecture, actual data is created per-user during onboarding.
+-- This seed is useful for development/testing with a known user.
+
+-- ============================================================
+-- IMPORTANT: To use this seed, first create a test user via Supabase Auth,
+-- then replace the UUIDs below with real values.
+-- ============================================================
+
+-- Step 1: Create test user profile (replace UUID with actual auth.users.id)
+-- INSERT INTO users (id, email, name, onboarding_completed)
+-- VALUES ('YOUR-AUTH-USER-UUID', 'test@example.com', 'Test Skipper', true);
+
+-- Step 2: Create test boat
+-- INSERT INTO boats (id, user_id, name, type, length_m, draft_m, air_draft_m, engine_type, fuel_capacity_hours, avg_speed_kn, has_ais_tx, has_autopilot)
+-- VALUES ('11111111-1111-1111-1111-111111111111', 'YOUR-AUTH-USER-UUID', 'Laurine', 'Laurin Koster 28', 8.5, 1.45, 12, 'Diesel', 40, 4.5, false, false);
+
+-- Step 3: Create nav profile
+-- INSERT INTO nav_profiles (id, user_id, boat_id, experience, crew_mode, risk_tolerance, night_sailing, max_continuous_hours)
+-- VALUES ('22222222-2222-2222-2222-222222222222', 'YOUR-AUTH-USER-UUID', '11111111-1111-1111-1111-111111111111', 'Experienced', 'Solo', 'Moderate', 'Only if necessary', 16);
+
+-- Step 4: Create voyage
+-- INSERT INTO voyages (id, user_id, boat_id, nav_profile_id, name, status)
+-- VALUES ('33333333-3333-3333-3333-333333333333', 'YOUR-AUTH-USER-UUID', '11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', 'Audierne → Nice', 'active');
+
+-- ============================================================
+-- Template: Audierne → Nice route (20 legs)
+-- Used by onboarding wizard when user selects this route template.
+-- In production, these are inserted into route_steps with the user's voyage_id.
+-- ============================================================
+
+-- To seed for a test voyage, uncomment and replace VOYAGE_ID:
+-- INSERT INTO route_steps (voyage_id, order_num, name, from_port, to_port, distance_nm, distance_km, phase, status, from_lat, from_lon, to_lat, to_lon, notes) VALUES
+-- ('VOYAGE_ID', 1,  'Raz de Sein crossing',      'Audierne',       'Bénodet',          30,   NULL, 'Atlantic',      'to_do', 48.0069, -4.5397, 47.8753, -4.1103, 'Critical: time the Raz de Sein with slack current. Plan B: stay Audierne.'),
+-- ('VOYAGE_ID', 2,  'To Lorient',                'Bénodet',        'Lorient',          35,   NULL, 'Atlantic',      'to_do', 47.8753, -4.1103, 47.7283, -3.3700, NULL),
+-- ('VOYAGE_ID', 3,  'Belle-Île stop',            'Lorient',        'Belle-Île',        25,   NULL, 'Atlantic',      'to_do', 47.7283, -3.3700, 47.3486, -3.1536, 'Le Palais harbor. Good shelter.'),
+-- ('VOYAGE_ID', 4,  'To Le Croisic',             'Belle-Île',      'Le Croisic',       30,   NULL, 'Atlantic',      'to_do', 47.3486, -3.1536, 47.2922, -2.5097, NULL),
+-- ('VOYAGE_ID', 5,  'To Pornic',                 'Le Croisic',     'Pornic',           25,   NULL, 'Atlantic',      'to_do', 47.2922, -2.5097, 47.1139, -2.1022, NULL),
+-- ('VOYAGE_ID', 6,  'To Les Sables-d''Olonne',   'Pornic',         'Les Sables-d''Olonne', 40, NULL, 'Atlantic',   'to_do', 47.1139, -2.1022, 46.4972, -1.7900, NULL),
+-- ('VOYAGE_ID', 7,  'To La Rochelle',            'Les Sables-d''Olonne', 'La Rochelle', 45,  NULL, 'Atlantic',      'to_do', 46.4972, -1.7900, 46.1575, -1.1528, 'Good resupply port. Fuel + provisions.'),
+-- ('VOYAGE_ID', 8,  'To Royan',                  'La Rochelle',    'Royan',            35,   NULL, 'Atlantic',      'to_do', 46.1575, -1.1528, 45.6228, -1.0286, 'Last Atlantic leg. Prepare for Gironde.'),
+-- ('VOYAGE_ID', 9,  'Gironde estuary',           'Royan',          'Bordeaux',         55,   NULL, 'Gironde',       'to_do', 45.6228, -1.0286, 44.8378, -0.5792, 'Strong tidal currents. Time with rising tide. Commercial traffic.'),
+-- ('VOYAGE_ID', 10, 'Canal start',               'Bordeaux',       'Agen',             NULL, 100,  'Garonne Canal', 'to_do', 44.8378, -0.5792, 44.2033, 0.6167,  'Lateral canal. Speed limit 8 km/h. VNF lock hours.'),
+-- ('VOYAGE_ID', 11, 'To Toulouse',               'Agen',           'Toulouse',         NULL, 100,  'Garonne Canal', 'to_do', 44.2033, 0.6167,  43.6047, 1.4442,  NULL),
+-- ('VOYAGE_ID', 12, 'Canal du Midi begins',      'Toulouse',       'Castelnaudary',    NULL, 60,   'Midi Canal',    'to_do', 43.6047, 1.4442,  43.3186, 1.9544,  'Entering Canal du Midi. Check bridge air drafts.'),
+-- ('VOYAGE_ID', 13, 'To Carcassonne',            'Castelnaudary',  'Carcassonne',      NULL, 40,   'Midi Canal',    'to_do', 43.3186, 1.9544,  43.2128, 2.3514,  NULL),
+-- ('VOYAGE_ID', 14, 'To Béziers',                'Carcassonne',    'Béziers',          NULL, 80,   'Midi Canal',    'to_do', 43.2128, 2.3514,  43.3447, 3.2150,  'Fonseranes locks (staircase). Check operational status.'),
+-- ('VOYAGE_ID', 15, 'Canal exit via Thau',       'Béziers',        'Sète',             NULL, 40,   'Midi Canal',    'to_do', 43.3447, 3.2150,  43.4053, 3.6958,  'Cross Étang de Thau. Watch wind conditions on lagoon.'),
+-- ('VOYAGE_ID', 16, 'Back to sea',               'Sète',           'Port-Camargue',    30,   NULL, 'Mediterranean', 'to_do', 43.4053, 3.6958,  43.5267, 4.1350,  'First Mediterranean leg. Potential Tramontane.'),
+-- ('VOYAGE_ID', 17, 'To Marseille',              'Port-Camargue',  'Marseille',        55,   NULL, 'Mediterranean', 'to_do', 43.5267, 4.1350,  43.2965, 5.3698,  'Gulf of Lion crossing. Watch Mistral. No shelter for 55 NM.'),
+-- ('VOYAGE_ID', 18, 'To Toulon',                 'Marseille',      'Toulon',           35,   NULL, 'Mediterranean', 'to_do', 43.2965, 5.3698,  43.1242, 5.9280,  'Coastal cabotage. Many shelter options.'),
+-- ('VOYAGE_ID', 19, 'To Hyères',                 'Toulon',         'Hyères',           20,   NULL, 'Mediterranean', 'to_do', 43.1242, 5.9280,  43.0833, 6.1500,  'Short hop. Porquerolles possible anchorage.'),
+-- ('VOYAGE_ID', 20, 'Final leg to Nice',         'Hyères',         'Nice',             60,   NULL, 'Mediterranean', 'to_do', 43.0833, 6.1500,  43.6961, 7.2719,  'Last leg. Saint-Raphaël or Cannes as intermediate stops if needed.');
+
+-- ============================================================
+-- Template: Post-winter checklist
+-- Inserted per-voyage during onboarding or when user creates a voyage.
+-- ============================================================
+
+-- To seed for a test voyage, uncomment and replace VOYAGE_ID:
+-- INSERT INTO checklist (voyage_id, task, category, priority, status, notes) VALUES
+-- Safety (Critical)
+-- ('VOYAGE_ID', 'Repair navigation lights', 'Safety', 'Critical', 'to_do', 'All nav lights broken. Must fix before departure.'),
+-- ('VOYAGE_ID', 'Check life jackets and harnesses', 'Safety', 'Critical', 'to_do', 'Inspect auto-inflate, check expiry dates'),
+-- ('VOYAGE_ID', 'Test VHF radio', 'Safety', 'Critical', 'to_do', 'Test on channel 16, check DSC'),
+-- ('VOYAGE_ID', 'Check fire extinguisher', 'Safety', 'Critical', 'to_do', 'Verify pressure gauge, check expiry'),
+-- ('VOYAGE_ID', 'Inspect flares', 'Safety', 'High', 'to_do', 'Check expiry dates, have min 3 handheld + 3 parachute'),
+-- ('VOYAGE_ID', 'Test bilge pump', 'Safety', 'High', 'to_do', 'Manual and electric'),
+-- ('VOYAGE_ID', 'Check first aid kit', 'Safety', 'Normal', 'to_do', 'Restock if needed'),
+-- Propulsion (Critical/High)
+-- ('VOYAGE_ID', 'Engine oil and filter change', 'Propulsion', 'Critical', 'to_do', 'Post-winter maintenance'),
+-- ('VOYAGE_ID', 'Check impeller', 'Propulsion', 'Critical', 'to_do', 'Raw water pump impeller — replace if any doubt'),
+-- ('VOYAGE_ID', 'Check fuel system', 'Propulsion', 'High', 'to_do', 'Bleed fuel lines, check for water in fuel, change fuel filter'),
+-- ('VOYAGE_ID', 'Test engine start', 'Propulsion', 'High', 'to_do', 'Run engine 30min, check temperature, oil pressure'),
+-- ('VOYAGE_ID', 'Check propeller', 'Propulsion', 'High', 'to_do', 'Dive or dry dock check, clean barnacles'),
+-- ('VOYAGE_ID', 'Fill fuel tank + jerricans', 'Propulsion', 'High', 'to_do', '~40h total autonomy needed'),
+-- Navigation
+-- ('VOYAGE_ID', 'Update Navionics charts', 'Navigation', 'High', 'to_do', 'Download latest chart updates'),
+-- ('VOYAGE_ID', 'Test GPS and plotter', 'Navigation', 'High', 'to_do', 'Verify position accuracy'),
+-- ('VOYAGE_ID', 'Check compass', 'Navigation', 'Normal', 'to_do', 'Verify deviation table'),
+-- ('VOYAGE_ID', 'Download canal guides', 'Navigation', 'Normal', 'to_do', 'VNF guides, lock schedules, bridge heights'),
+-- Rigging
+-- ('VOYAGE_ID', 'Check standing rigging', 'Rigging', 'High', 'to_do', 'Inspect shrouds, forestay, backstay for corrosion'),
+-- ('VOYAGE_ID', 'Check running rigging', 'Rigging', 'High', 'to_do', 'Halyards, sheets — replace if chafed'),
+-- ('VOYAGE_ID', 'Inspect sails', 'Rigging', 'Normal', 'to_do', 'Mainsail and jib — check for wear, UV damage'),
+-- ('VOYAGE_ID', 'Grease winches', 'Rigging', 'Normal', 'to_do', NULL),
+-- Comfort
+-- ('VOYAGE_ID', 'Fill fresh water tanks', 'Comfort', 'High', 'to_do', NULL),
+-- ('VOYAGE_ID', 'Provision food for first week', 'Comfort', 'Normal', 'to_do', 'Non-perishable for passages, fresh for port days'),
+-- ('VOYAGE_ID', 'Check gas for cooking', 'Comfort', 'Normal', 'to_do', 'At least 2 full bottles'),
+-- ('VOYAGE_ID', 'Clean and air out boat', 'Comfort', 'Low', 'to_do', 'After winter — mildew check'),
+-- Admin
+-- ('VOYAGE_ID', 'Check boat insurance', 'Admin', 'High', 'to_do', 'Verify coverage for Mediterranean'),
+-- ('VOYAGE_ID', 'Prepare boat papers', 'Admin', 'High', 'to_do', 'Registration, insurance, radio license'),
+-- ('VOYAGE_ID', 'Check VNF canal fees', 'Admin', 'Normal', 'to_do', 'Buy vignette if needed'),
+-- ('VOYAGE_ID', 'Download offline maps', 'Admin', 'Normal', 'to_do', 'OSM tiles for entire route');
+
+-- ============================================================
+-- Initial boat status for test voyage
+-- ============================================================
+
+-- INSERT INTO boat_status (voyage_id, current_position, current_lat, current_lon, fuel_tank, jerricans, water, active_problems, current_phase, current_step_id, nav_status)
+-- VALUES (
+--   'VOYAGE_ID',
+--   'Audierne',
+--   48.0069,
+--   -4.5397,
+--   'full',
+--   4,
+--   'full',
+--   ARRAY['navigation_lights'],
+--   'Atlantic',
+--   (SELECT id FROM route_steps WHERE voyage_id = 'VOYAGE_ID' AND order_num = 1),
+--   'in_port'
+-- );
