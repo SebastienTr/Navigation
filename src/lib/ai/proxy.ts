@@ -4,7 +4,7 @@ import type { CallClaudeOptions } from '@/types'
 // ── Modeles par defaut ─────────────────────────────────────────────────────
 
 export const MODEL_CHAT = 'claude-haiku-4-5-20251001'
-export const MODEL_SONNET = 'claude-sonnet-4-5-20241022'
+export const MODEL_SONNET = 'claude-sonnet-4-6'
 
 // ── Client singleton ───────────────────────────────────────────────────────
 

@@ -53,7 +53,7 @@ const LEVEL_LABELS: Record<string, string> = {
   '3/4': '3/4',
   half: '1/2',
   '1/4': '1/4',
-  reserve: 'Reserve',
+  reserve: 'Réserve',
   empty: 'Vide',
 }
 
@@ -211,7 +211,7 @@ function WeatherSummary({
     return (
       <Card>
         <p className="text-sm text-gray-400 dark:text-gray-500">
-          Position inconnue — meteo indisponible
+          Position inconnue — météo indisponible
         </p>
       </Card>
     )
@@ -220,7 +220,7 @@ function WeatherSummary({
   return (
     <Card>
       <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-        Meteo actuelle
+        Météo actuelle
       </h3>
       <div className="grid grid-cols-3 gap-3">
         <WeatherMetric
@@ -241,7 +241,7 @@ function WeatherSummary({
         />
         <WeatherMetric
           icon={<Eye size={16} />}
-          label="Visibilite"
+          label="Visibilité"
           value={
             weather.visibility >= 1000
               ? `${(weather.visibility / 1000).toFixed(0)} km`
@@ -250,7 +250,7 @@ function WeatherSummary({
         />
         <WeatherMetric
           icon={<Thermometer size={16} />}
-          label="Temperature"
+          label="Température"
           value={`${Math.round(weather.temperature)}°C`}
         />
       </div>
@@ -324,7 +324,7 @@ function LevelsBar({
         />
       </div>
       <p className="mt-2 text-right text-[10px] text-gray-400 dark:text-gray-500">
-        Mettre a jour dans le journal <ChevronRight size={10} className="inline" />
+        Mettre à jour dans le journal <ChevronRight size={10} className="inline" />
       </p>
     </Card>
   )
@@ -411,7 +411,7 @@ function RouteProgress({ voyageId }: { voyageId: string }) {
     return (
       <Card onClick={() => router.push('/route')}>
         <p className="text-sm text-gray-400 dark:text-gray-500">
-          Aucun itineraire defini
+          Aucun itinéraire défini
         </p>
       </Card>
     )
@@ -434,7 +434,7 @@ function RouteProgress({ voyageId }: { voyageId: string }) {
   return (
     <Card onClick={() => router.push('/route')}>
       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-        Itineraire
+        Itinéraire
       </h3>
       {currentStep && (
         <div className="mb-2">
@@ -453,13 +453,13 @@ function RouteProgress({ voyageId }: { voyageId: string }) {
       )}
       <div className="mb-1 flex items-baseline justify-between">
         <span className="text-xs text-gray-500 dark:text-gray-400">
-          Etape {doneCount + (currentStep ? 1 : 0)}/{totalSteps}
+          Étape {doneCount + (currentStep ? 1 : 0)}/{totalSteps}
         </span>
         <span className="text-xs text-gray-500 dark:text-gray-400">
           {remainingNm > 0 && `${Math.round(remainingNm)} NM`}
           {remainingNm > 0 && remainingKm > 0 && ' + '}
           {remainingKm > 0 && `${Math.round(remainingKm)} km`}
-          {remainingNm === 0 && remainingKm === 0 && 'Termine'}
+          {remainingNm === 0 && remainingKm === 0 && 'Terminé'}
         </span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
@@ -514,7 +514,7 @@ export default function DashboardPage() {
             Aucune navigation active
           </p>
           <p className="text-sm text-gray-400 dark:text-gray-500">
-            Creez une navigation dans les parametres pour commencer
+            Créez une navigation dans les paramètres pour commencer
           </p>
         </Card>
       </div>

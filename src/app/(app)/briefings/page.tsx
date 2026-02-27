@@ -169,7 +169,7 @@ function TodayBriefing({ briefing }: TodayBriefingProps) {
           <span>{briefing.position}</span>
           {briefing.destination && (
             <span className="text-gray-400 dark:text-gray-500">
-              {' '}\u2192 {briefing.destination}
+              {' '}→ {briefing.destination}
             </span>
           )}
         </div>
@@ -253,7 +253,7 @@ function BriefingCard({ briefing, isExpanded, onToggle }: BriefingCardProps) {
             )}
             {briefing.destination && (
               <span className="text-xs text-gray-500 dark:text-gray-400">
-                \u2192 {briefing.destination}
+                → {briefing.destination}
               </span>
             )}
           </div>
@@ -371,7 +371,7 @@ export default function BriefingsPage() {
           Aucun voyage actif
         </p>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Cr\u00e9ez un voyage dans les r\u00e9glages pour voir vos briefings.
+          Créez un voyage dans les réglages pour voir vos briefings.
         </p>
       </div>
     )
@@ -402,7 +402,7 @@ export default function BriefingsPage() {
               <RefreshCw size={16} />
             )}
             <span className="hidden min-[400px]:inline">
-              {generating ? 'G\u00e9n\u00e9ration...' : 'G\u00e9n\u00e9rer'}
+              {generating ? 'Génération...' : 'Générer'}
             </span>
           </button>
         </div>
@@ -417,7 +417,7 @@ export default function BriefingsPage() {
               Aucun briefing disponible
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Le premier sera g\u00e9n\u00e9r\u00e9 demain \u00e0 5h.
+              Le premier sera généré demain à 5h.
             </p>
             <button
               type="button"
@@ -430,7 +430,7 @@ export default function BriefingsPage() {
               ) : (
                 <RefreshCw size={16} />
               )}
-              G\u00e9n\u00e9rer un briefing maintenant
+              Générer un briefing maintenant
             </button>
           </div>
         ) : (

@@ -30,7 +30,7 @@ export default function LoginPage() {
         setSent(true)
       }
     } catch {
-      setError('Une erreur est survenue. Veuillez r\u00e9essayer.')
+      setError('Une erreur est survenue. Veuillez réessayer.')
     } finally {
       setLoading(false)
     }
@@ -60,10 +60,10 @@ export default function LoginPage() {
               <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
             </div>
             <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
-              V\u00e9rifiez votre bo\u00eete mail
+              Vérifiez votre boîte mail
             </h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-              Un lien de connexion a \u00e9t\u00e9 envoy\u00e9 \u00e0{' '}
+              Un lien de connexion a été envoyé à{' '}
               <span className="font-medium text-slate-700 dark:text-slate-300">
                 {email}
               </span>
@@ -141,7 +141,7 @@ export default function LoginPage() {
 
       {/* Footer */}
       <p className="mt-8 text-xs text-slate-400 dark:text-slate-500 text-center">
-        Connexion s\u00e9curis\u00e9e par Supabase Auth
+        Connexion sécurisée par Supabase Auth
       </p>
     </div>
   )

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Send, MessageCircle, AlertCircle } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
 import { useAuth } from '@/lib/auth/context'
 import { useActiveVoyage } from '@/lib/auth/hooks'
 import { createClient } from '@/lib/supabase/client'
@@ -85,7 +86,7 @@ export default function ChatPage() {
 
       if (fetchError) {
         console.error('Failed to load chat history:', fetchError.message)
-        setError('Impossible de charger l\u2019historique du chat.')
+        setError('Impossible de charger l\'historique du chat.')
       } else if (data) {
         setMessages(
           data.map((row: ChatMessageRow) => ({
@@ -146,7 +147,7 @@ export default function ChatPage() {
         }
 
         if (!response.body) {
-          throw new Error('Pas de flux de r\u00e9ponse')
+          throw new Error('Pas de flux de réponse')
         }
 
         // Add empty assistant message
@@ -155,27 +156,52 @@ export default function ChatPage() {
         const reader = response.body.getReader()
         const decoder = new TextDecoder()
         let accumulated = ''
+        let buffer = ''
 
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
 
-          const chunk = decoder.decode(value, { stream: true })
-          accumulated += chunk
+          buffer += decoder.decode(value, { stream: true })
 
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === assistantMessageId
-                ? { ...msg, content: accumulated }
-                : msg
-            )
-          )
+          // Parse SSE events (each event ends with \n\n)
+          const events = buffer.split('\n\n')
+          // Keep the last potentially incomplete chunk in buffer
+          buffer = events.pop() ?? ''
+
+          for (const event of events) {
+            const line = event.trim()
+            if (!line.startsWith('data: ')) continue
+
+            try {
+              const json = JSON.parse(line.slice(6))
+              if (json.type === 'text_delta' && json.text) {
+                accumulated += json.text
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, content: accumulated }
+                      : msg
+                  )
+                )
+              } else if (json.type === 'error') {
+                throw new Error(json.error || 'Erreur du serveur')
+              }
+              // 'message_stop' — stream terminé, rien à faire
+            } catch (parseErr) {
+              // Ignore malformed SSE lines
+              if (parseErr instanceof Error && parseErr.message !== 'Erreur du serveur') {
+                continue
+              }
+              throw parseErr
+            }
+          }
         }
       } catch (err) {
         const errorMessage =
           err instanceof Error
             ? err.message
-            : 'Une erreur est survenue. R\u00e9essayez.'
+            : 'Une erreur est survenue. Réessayez.'
         setError(errorMessage)
 
         // Remove the empty assistant message if it was added
@@ -223,7 +249,7 @@ export default function ChatPage() {
           Aucun voyage actif
         </p>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Cr\u00e9ez un voyage dans les r\u00e9glages pour commencer \u00e0 discuter.
+          Créez un voyage dans les réglages pour commencer à discuter.
         </p>
       </div>
     )
@@ -239,7 +265,7 @@ export default function ChatPage() {
           Chat
         </h1>
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          Votre second IA \u2014 {voyage.name}
+          Votre second IA — {voyage.name}
         </p>
       </header>
 
@@ -266,7 +292,7 @@ export default function ChatPage() {
                     Posez une question
                   </p>
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    Votre second conna\u00eet votre bateau et votre itin\u00e9raire
+                    Votre second connaît votre bateau et votre itinéraire
                   </p>
                 </div>
                 <div className="flex flex-wrap justify-center gap-2">
@@ -301,9 +327,15 @@ export default function ChatPage() {
                         : 'rounded-bl-sm bg-gray-200 text-gray-900 dark:bg-gray-800 dark:text-gray-100'
                     }`}
                   >
-                    <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
-                      {msg.content}
-                    </p>
+                    {msg.role === 'assistant' ? (
+                      <div className="prose-chat text-[15px] leading-relaxed">
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </div>
+                    ) : (
+                      <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
+                        {msg.content}
+                      </p>
+                    )}
                     <p
                       className={`mt-1 text-[10px] ${
                         msg.role === 'user'
@@ -346,7 +378,7 @@ export default function ChatPage() {
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder="Parlez \u00e0 votre second..."
+            placeholder="Parlez à votre second..."
             disabled={isStreaming}
             rows={1}
             className="min-h-[44px] flex-1 resize-none rounded-2xl border border-gray-300 bg-gray-50 px-4 py-3 text-[15px] text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-blue-400 dark:focus:ring-blue-400"

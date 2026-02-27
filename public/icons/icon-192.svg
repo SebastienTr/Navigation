@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <!-- White rounded background -->
+  <rect width="192" height="192" rx="32" fill="#ffffff"/>
+
+  <!-- Outer compass ring -->
+  <circle cx="96" cy="96" r="72" fill="none" stroke="#2563EB" stroke-width="3" opacity="0.3"/>
+  <circle cx="96" cy="96" r="64" fill="none" stroke="#2563EB" stroke-width="2" opacity="0.15"/>
+
+  <!-- Cardinal direction ticks -->
+  <!-- N -->
+  <line x1="96" y1="24" x2="96" y2="36" stroke="#2563EB" stroke-width="3" stroke-linecap="round"/>
+  <!-- S -->
+  <line x1="96" y1="156" x2="96" y2="168" stroke="#2563EB" stroke-width="3" stroke-linecap="round"/>
+  <!-- E -->
+  <line x1="156" y1="96" x2="168" y2="96" stroke="#2563EB" stroke-width="3" stroke-linecap="round"/>
+  <!-- W -->
+  <line x1="24" y1="96" x2="36" y2="96" stroke="#2563EB" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Intercardinal ticks (smaller) -->
+  <!-- NE -->
+  <line x1="143" y1="49" x2="149" y2="43" stroke="#2563EB" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+  <!-- SE -->
+  <line x1="143" y1="143" x2="149" y2="149" stroke="#2563EB" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+  <!-- SW -->
+  <line x1="49" y1="143" x2="43" y2="149" stroke="#2563EB" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+  <!-- NW -->
+  <line x1="49" y1="49" x2="43" y2="43" stroke="#2563EB" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- Compass rose - North pointer (blue filled) -->
+  <polygon points="96,38 106,92 96,82 86,92" fill="#2563EB"/>
+  <!-- Compass rose - South pointer (blue outline) -->
+  <polygon points="96,154 106,100 96,110 86,100" fill="#2563EB" opacity="0.3"/>
+  <!-- Compass rose - East pointer (blue filled) -->
+  <polygon points="154,96 100,86 110,96 100,106" fill="#2563EB" opacity="0.5"/>
+  <!-- Compass rose - West pointer (blue outline) -->
+  <polygon points="38,96 92,86 82,96 92,106" fill="#2563EB" opacity="0.5"/>
+
+  <!-- Center dot -->
+  <circle cx="96" cy="96" r="4" fill="#2563EB"/>
+
+  <!-- N letter -->
+  <text x="96" y="18" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="bold" fill="#2563EB">N</text>
+</svg>

@@ -29,7 +29,7 @@ interface CategoryConfig {
 
 const CATEGORIES: Record<Category, CategoryConfig> = {
   Safety: {
-    label: 'S\u00e9curit\u00e9',
+    label: 'Sécurité',
     color: 'text-red-500',
     bgLight: 'bg-red-50',
     bgDark: 'dark:bg-red-950',
@@ -47,7 +47,7 @@ const CATEGORIES: Record<Category, CategoryConfig> = {
     bgDark: 'dark:bg-blue-950',
   },
   Rigging: {
-    label: 'Gr\u00e9ement',
+    label: 'Gréement',
     color: 'text-yellow-500',
     bgLight: 'bg-yellow-50',
     bgDark: 'dark:bg-yellow-950',
@@ -156,7 +156,7 @@ function AddTaskModal({ onClose, onSave }: AddTaskModalProps) {
         {/* Header */}
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Nouvelle t\u00e2che
+            Nouvelle tâche
           </h2>
           <button
             type="button"
@@ -174,14 +174,14 @@ function AddTaskModal({ onClose, onSave }: AddTaskModalProps) {
             htmlFor="task-input"
             className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
           >
-            T\u00e2che
+            Tâche
           </label>
           <input
             id="task-input"
             type="text"
             value={task}
             onChange={(e) => setTask(e.target.value)}
-            placeholder="D\u00e9crivez la t\u00e2che..."
+            placeholder="Décrivez la tâche..."
             autoFocus
             className="min-h-[44px] w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-blue-400 dark:focus:ring-blue-400"
           />
@@ -193,7 +193,7 @@ function AddTaskModal({ onClose, onSave }: AddTaskModalProps) {
             htmlFor="category-select"
             className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
           >
-            Cat\u00e9gorie
+            Catégorie
           </label>
           <select
             id="category-select"
@@ -215,7 +215,7 @@ function AddTaskModal({ onClose, onSave }: AddTaskModalProps) {
             htmlFor="priority-select"
             className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
           >
-            Priorit\u00e9
+            Priorité
           </label>
           <select
             id="priority-select"
@@ -421,7 +421,7 @@ export default function ChecklistPage() {
           Aucun voyage actif
         </p>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Cr\u00e9ez un voyage dans les r\u00e9glages pour g\u00e9rer votre checklist.
+          Créez un voyage dans les réglages pour gérer votre checklist.
         </p>
       </div>
     )
@@ -437,7 +437,7 @@ export default function ChecklistPage() {
               Checklist
             </h1>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              {doneCount}/{totalCount} termin\u00e9s
+              {doneCount}/{totalCount} terminés
             </p>
           </div>
           <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
@@ -500,15 +500,15 @@ export default function ChecklistPage() {
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
             <ClipboardList size={48} className="text-gray-300 dark:text-gray-700" />
             <p className="text-base font-medium text-gray-900 dark:text-gray-100">
-              Aucune t\u00e2che
+              Aucune tâche
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Ajoutez votre premi\u00e8re t\u00e2che avec le bouton +.
+              Ajoutez votre première tâche avec le bouton +.
             </p>
           </div>
         ) : filteredItems.length === 0 ? (
           <p className="py-8 text-center text-sm text-gray-400 dark:text-gray-500">
-            Aucune t\u00e2che pour ces filtres.
+            Aucune tâche pour ces filtres.
           </p>
         ) : (
           /* Grouped items */
@@ -544,7 +544,7 @@ export default function ChecklistPage() {
                             type="button"
                             onClick={() => toggleItem(item)}
                             disabled={togglingIds.has(item.id)}
-                            aria-label={isDone ? 'Marquer comme \u00e0 faire' : 'Marquer comme fait'}
+                            aria-label={isDone ? 'Marquer comme à faire' : 'Marquer comme fait'}
                             className="mt-0.5 flex h-[44px] w-[44px] shrink-0 items-center justify-center -ml-2 -mt-1.5"
                           >
                             {isDone ? (
@@ -597,7 +597,7 @@ export default function ChecklistPage() {
       <button
         type="button"
         onClick={() => setShowAddModal(true)}
-        aria-label="Ajouter une t\u00e2che"
+        aria-label="Ajouter une tâche"
         className="fixed bottom-24 right-4 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg transition-transform active:scale-95"
       >
         <Plus size={24} />

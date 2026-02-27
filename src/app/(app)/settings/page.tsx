@@ -72,7 +72,7 @@ function StatusBadge({ status }: { status: VoyageRow['status'] }) {
   const config = {
     active: { label: 'Actif', className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
     planning: { label: 'Planification', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
-    completed: { label: 'Termine', className: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' },
+    completed: { label: 'Terminé', className: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' },
   }
   const { label, className } = config[status]
 
@@ -116,7 +116,7 @@ function SaveButton({
       ) : (
         <Save size={16} />
       )}
-      {saved ? 'Sauvegarde' : label}
+      {saved ? 'Sauvegardé' : label}
     </button>
   )
 }
@@ -255,7 +255,7 @@ function BoatForm({
         .insert(payload)
 
       if (insertError) {
-        setError(`Erreur de creation : ${insertError.message}`)
+        setError(`Erreur de création : ${insertError.message}`)
       } else {
         setSaved(true)
         onSaved()
@@ -327,10 +327,10 @@ function BoatForm({
             value={form.engine_type}
             onChange={(e) => updateField('engine_type', e.target.value)}
           >
-            <option value="">Non renseigne</option>
+            <option value="">Non renseigné</option>
             <option value="Diesel">Diesel</option>
             <option value="Essence">Essence</option>
-            <option value="Electrique">Electrique</option>
+            <option value="Électrique">Électrique</option>
             <option value="Hybride">Hybride</option>
             <option value="Voile seule">Voile seule</option>
           </select>
@@ -361,7 +361,7 @@ function BoatForm({
 
       <div className="space-y-3 pt-2">
         <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          Equipement
+          Équipement
         </p>
         <div className="grid grid-cols-2 gap-3">
           <label className="flex min-h-[44px] items-center gap-2.5">
@@ -372,7 +372,7 @@ function BoatForm({
               onChange={(e) => updateField('has_ais_tx', e.target.checked)}
             />
             <span className="text-sm text-gray-700 dark:text-gray-300">
-              AIS emetteur
+              AIS émetteur
             </span>
           </label>
           <label className="flex min-h-[44px] items-center gap-2.5">
@@ -482,7 +482,7 @@ function ProfileForm({
         .insert(payload)
 
       if (insertError) {
-        setError(`Erreur de creation : ${insertError.message}`)
+        setError(`Erreur de création : ${insertError.message}`)
       } else {
         setSaved(true)
         onSaved()
@@ -495,7 +495,7 @@ function ProfileForm({
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Experience">
+        <Field label="Expérience">
           <select
             className={selectClass}
             value={experience}
@@ -504,15 +504,15 @@ function ProfileForm({
               setSaved(false)
             }}
           >
-            <option value="">Non renseigne</option>
-            <option value="Beginner">Debutant</option>
-            <option value="Intermediate">Intermediaire</option>
-            <option value="Experienced">Experimente</option>
+            <option value="">Non renseigné</option>
+            <option value="Beginner">Débutant</option>
+            <option value="Intermediate">Intermédiaire</option>
+            <option value="Experienced">Expérimenté</option>
             <option value="Pro">Professionnel</option>
           </select>
         </Field>
 
-        <Field label="Mode equipage">
+        <Field label="Mode équipage">
           <select
             className={selectClass}
             value={crewMode}
@@ -521,15 +521,15 @@ function ProfileForm({
               setSaved(false)
             }}
           >
-            <option value="">Non renseigne</option>
+            <option value="">Non renseigné</option>
             <option value="Solo">Solo</option>
             <option value="Duo">Duo</option>
             <option value="Family">Famille</option>
-            <option value="Full crew">Equipage complet</option>
+            <option value="Full crew">Équipage complet</option>
           </select>
         </Field>
 
-        <Field label="Tolerance au risque">
+        <Field label="Tolérance au risque">
           <select
             className={selectClass}
             value={riskTolerance}
@@ -538,9 +538,9 @@ function ProfileForm({
               setSaved(false)
             }}
           >
-            <option value="">Non renseigne</option>
+            <option value="">Non renseigné</option>
             <option value="Cautious">Prudent</option>
-            <option value="Moderate">Modere</option>
+            <option value="Moderate">Modéré</option>
             <option value="Bold">Audacieux</option>
           </select>
         </Field>
@@ -554,10 +554,10 @@ function ProfileForm({
               setSaved(false)
             }}
           >
-            <option value="">Non renseigne</option>
+            <option value="">Non renseigné</option>
             <option value="No">Non</option>
             <option value="Yes">Oui</option>
-            <option value="Only if necessary">Si necessaire</option>
+            <option value="Only if necessary">Si nécessaire</option>
           </select>
         </Field>
 
@@ -612,7 +612,7 @@ function NewVoyageForm({
       return
     }
     if (!boatId) {
-      setError('Selectionnez un bateau.')
+      setError('Sélectionnez un bateau.')
       return
     }
 
@@ -635,7 +635,7 @@ function NewVoyageForm({
       .single()
 
     if (voyageError || !voyage) {
-      setError(`Erreur de creation : ${voyageError?.message ?? 'Erreur inconnue'}`)
+      setError(`Erreur de création : ${voyageError?.message ?? 'Erreur inconnue'}`)
       setSaving(false)
       return
     }
@@ -649,7 +649,7 @@ function NewVoyageForm({
       })
 
     if (statusError) {
-      console.error('Erreur creation boat_status:', statusError.message)
+      console.error('Erreur création boat_status:', statusError.message)
     }
 
     setSaving(false)
@@ -679,7 +679,7 @@ function NewVoyageForm({
           onChange={(e) => setBoatId(e.target.value)}
         >
           {boats.length === 0 && (
-            <option value="">Aucun bateau configure</option>
+            <option value="">Aucun bateau configuré</option>
           )}
           {boats.map((b) => (
             <option key={b.id} value={b.id}>
@@ -721,7 +721,7 @@ function NewVoyageForm({
           ) : (
             <Plus size={16} />
           )}
-          Creer le voyage
+          Créer le voyage
         </button>
         <button
           type="button"
@@ -758,8 +758,8 @@ function DeleteAccountDialog({
             Supprimer mon compte
           </p>
           <p className="text-sm text-red-700 dark:text-red-400">
-            Cette action est irreversible. Toutes vos donnees (bateaux, voyages,
-            journal, briefings) seront supprimees definitivement.
+            Cette action est irreversible. Toutes vos données (bateaux, voyages,
+            journal, briefings) seront supprimées définitivement.
           </p>
           <p className="text-sm text-red-700 dark:text-red-400">
             Tapez <strong>SUPPRIMER</strong> pour confirmer :
@@ -920,7 +920,7 @@ export default function SettingsPage() {
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 dark:border-gray-700 dark:border-t-blue-400" />
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Chargement des parametres...
+            Chargement des paramètres...
           </p>
         </div>
       </div>
@@ -932,10 +932,10 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="px-4 pb-2 pt-4">
         <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-          Parametres
+          Paramètres
         </h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Gerez votre bateau, profil et voyages
+          Gérez votre bateau, profil et voyages
         </p>
       </div>
 
@@ -989,7 +989,7 @@ export default function SettingsPage() {
 
             {boats.length === 0 && !addingBoat && (
               <p className="py-2 text-sm text-gray-500 dark:text-gray-400">
-                Aucun bateau configure.
+                Aucun bateau configuré.
               </p>
             )}
 
@@ -1103,7 +1103,7 @@ export default function SettingsPage() {
 
             {voyages.length === 0 && !addingVoyage && (
               <p className="py-2 text-sm text-gray-500 dark:text-gray-400">
-                Aucun voyage configure.
+                Aucun voyage configuré.
               </p>
             )}
 
@@ -1180,7 +1180,7 @@ export default function SettingsPage() {
               className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 active:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:active:bg-gray-800"
             >
               <LogOut size={16} />
-              Se deconnecter
+              Se déconnecter
             </button>
 
             {/* Delete account */}

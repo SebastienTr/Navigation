@@ -33,8 +33,8 @@ type WaterLevel = NonNullable<LogRow['water']>
 
 const ENTRY_TYPES: { value: EntryType; label: string; icon: typeof Navigation }[] = [
   { value: 'navigation', label: 'Navigation', icon: Navigation },
-  { value: 'arrival', label: 'Arriv\u00e9e', icon: Anchor },
-  { value: 'departure', label: 'D\u00e9part', icon: Ship },
+  { value: 'arrival', label: 'Arrivée', icon: Anchor },
+  { value: 'departure', label: 'Départ', icon: Ship },
   { value: 'maintenance', label: 'Maintenance', icon: Wrench },
   { value: 'incident', label: 'Incident', icon: AlertTriangle },
 ]
@@ -42,20 +42,20 @@ const ENTRY_TYPES: { value: EntryType; label: string; icon: typeof Navigation }[
 const FUEL_LEVELS: { value: FuelLevel; label: string }[] = [
   { value: 'full', label: 'Plein' },
   { value: '3/4', label: '3/4' },
-  { value: 'half', label: 'Moiti\u00e9' },
+  { value: 'half', label: 'Moitié' },
   { value: '1/4', label: '1/4' },
-  { value: 'reserve', label: 'R\u00e9serve' },
+  { value: 'reserve', label: 'Réserve' },
 ]
 
 const WATER_LEVELS: { value: WaterLevel; label: string }[] = [
   { value: 'full', label: 'Plein' },
   { value: '3/4', label: '3/4' },
-  { value: 'half', label: 'Moiti\u00e9' },
+  { value: 'half', label: 'Moitié' },
   { value: '1/4', label: '1/4' },
-  { value: 'reserve', label: 'R\u00e9serve' },
+  { value: 'reserve', label: 'Réserve' },
 ]
 
-const PROBLEM_TAGS = ['Moteur', 'Gr\u00e9ement', '\u00c9lectrique', 'Voile', 'Coque'] as const
+const PROBLEM_TAGS = ['Moteur', 'Gréement', 'Électrique', 'Voile', 'Coque'] as const
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -93,12 +93,12 @@ function entryTypeBadgeColor(type: EntryType | null): string {
 
 function fuelLevelIcon(level: FuelLevel | null): string {
   switch (level) {
-    case 'full': return '\u2588\u2588\u2588\u2588'
-    case '3/4': return '\u2588\u2588\u2588\u2591'
-    case 'half': return '\u2588\u2588\u2591\u2591'
-    case '1/4': return '\u2588\u2591\u2591\u2591'
-    case 'reserve': return '\u2591\u2591\u2591\u2591'
-    default: return '\u2014'
+    case 'full': return '████'
+    case '3/4': return '███░'
+    case 'half': return '██░░'
+    case '1/4': return '█░░░'
+    case 'reserve': return '░░░░'
+    default: return '—'
   }
 }
 
@@ -136,7 +136,7 @@ export default function LogPage() {
         const lon = pos.coords.longitude
         setLatitude(lat)
         setLongitude(lon)
-        setPosition(`${lat.toFixed(4)}\u00b0N, ${lon.toFixed(4)}\u00b0${lon >= 0 ? 'E' : 'W'}`)
+        setPosition(`${lat.toFixed(4)}°N, ${lon.toFixed(4)}°${lon >= 0 ? 'E' : 'W'}`)
       },
       (err) => {
         console.error('GPS unavailable:', err.message)
@@ -228,7 +228,7 @@ export default function LogPage() {
 
     if (logError) {
       console.error('Failed to save log:', logError.message)
-      setToast('Erreur lors de l\u2019enregistrement')
+      setToast('Erreur lors de l\'enregistrement')
       setSaving(false)
       return
     }
@@ -267,7 +267,7 @@ export default function LogPage() {
     setNotes('')
     setProblemText('')
     setProblemTags([])
-    setToast('Entr\u00e9e enregistr\u00e9e')
+    setToast('Entrée enregistrée')
     setSaving(false)
 
     // Refresh logs
@@ -297,7 +297,7 @@ export default function LogPage() {
       <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-3 px-6">
         <BookOpen className="h-12 w-12 text-gray-300 dark:text-gray-600" />
         <p className="text-center text-gray-500 dark:text-gray-400">
-          Aucun voyage actif. Cr\u00e9ez-en un depuis les Param\u00e8tres.
+          Aucun voyage actif. Créez-en un depuis les Paramètres.
         </p>
       </div>
     )
@@ -327,7 +327,7 @@ export default function LogPage() {
       {/* ── Log Form ────────────────────────────────────────────────────── */}
       <section className="mb-8">
         <h1 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">
-          Nouvelle entr\u00e9e
+          Nouvelle entrée
         </h1>
 
         {/* Date/Time */}
@@ -356,7 +356,7 @@ export default function LogPage() {
               type="text"
               value={position}
               onChange={(e) => setPosition(e.target.value)}
-              placeholder="Ex: 48.0244\u00b0N, 4.5389\u00b0W"
+              placeholder="Ex: 48.0244°N, 4.5389°W"
               className="h-11 w-full rounded-lg border border-gray-200 bg-white pl-10 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             />
           </div>
@@ -365,7 +365,7 @@ export default function LogPage() {
         {/* Entry type */}
         <div className="mb-4">
           <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-            Type d&apos;entr\u00e9e
+            Type d&apos;entrée
           </label>
           <div className="flex flex-wrap gap-2">
             {ENTRY_TYPES.map(({ value, label, icon: Icon }) => (
@@ -390,7 +390,7 @@ export default function LogPage() {
         <div className="mb-4">
           <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
             <Fuel className="mb-0.5 mr-1 inline h-3.5 w-3.5" />
-            Carburant r\u00e9servoir
+            Carburant réservoir
           </label>
           <div className="flex flex-wrap gap-2">
             {FUEL_LEVELS.map(({ value, label }) => (
@@ -466,7 +466,7 @@ export default function LogPage() {
         {/* Problems */}
         <div className="mb-4">
           <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-            Probl\u00e8mes
+            Problèmes
           </label>
           <div className="mb-2 flex flex-wrap gap-2">
             {PROBLEM_TAGS.map((tag) => (
@@ -488,7 +488,7 @@ export default function LogPage() {
             type="text"
             value={problemText}
             onChange={(e) => setProblemText(e.target.value)}
-            placeholder="D\u00e9tails du probl\u00e8me..."
+            placeholder="Détails du problème..."
             className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
           />
         </div>
@@ -505,7 +505,7 @@ export default function LogPage() {
             id="notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Observations, m\u00e9t\u00e9o, \u00e9v\u00e9nements..."
+            placeholder="Observations, météo, événements..."
             rows={3}
             className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
           />
@@ -542,7 +542,7 @@ export default function LogPage() {
         ) : logs.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-12 text-gray-400 dark:text-gray-500">
             <BookOpen className="h-10 w-10" />
-            <p className="text-sm">Aucune entr\u00e9e dans le journal</p>
+            <p className="text-sm">Aucune entrée dans le journal</p>
           </div>
         ) : (
           <ul className="space-y-3">

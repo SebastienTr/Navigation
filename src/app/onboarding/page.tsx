@@ -105,7 +105,7 @@ function StepBoat({
             Mon Bateau
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Caract\u00e9ristiques de votre navire
+            Caractéristiques de votre navire
           </p>
         </div>
       </div>
@@ -155,10 +155,10 @@ function StepBoat({
         value={data.engine_type}
         onChange={(v) => update('engine_type', v)}
         options={[
-          { value: '', label: 'S\u00e9lectionner...' },
+          { value: '', label: 'Sélectionner...' },
           { value: 'Diesel', label: 'Diesel' },
           { value: 'Essence', label: 'Essence' },
-          { value: '\u00c9lectrique', label: '\u00c9lectrique' },
+          { value: 'Électrique', label: 'Électrique' },
           { value: 'Voilier pur', label: 'Voilier pur' },
         ]}
       />
@@ -182,11 +182,11 @@ function StepBoat({
       {/* Equipment checkboxes */}
       <fieldset>
         <legend className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
-          \u00c9quipements
+          Équipements
         </legend>
         <div className="grid grid-cols-2 gap-3">
           <FieldCheckbox
-            label="AIS \u00e9metteur"
+            label="AIS émetteur"
             checked={data.has_ais_tx}
             onChange={(v) => update('has_ais_tx', v)}
           />
@@ -233,45 +233,45 @@ function StepProfile({
             Mon Profil
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Pour adapter l&apos;IA \u00e0 votre style de navigation
+            Pour adapter l&apos;IA à votre style de navigation
           </p>
         </div>
       </div>
 
       <FieldSelect
-        label="Exp\u00e9rience"
+        label="Expérience"
         value={data.experience}
         onChange={(v) => update('experience', v)}
         options={[
-          { value: '', label: 'S\u00e9lectionner...' },
-          { value: 'Beginner', label: 'D\u00e9butant' },
-          { value: 'Intermediate', label: 'Interm\u00e9diaire' },
-          { value: 'Experienced', label: 'Exp\u00e9riment\u00e9' },
+          { value: '', label: 'Sélectionner...' },
+          { value: 'Beginner', label: 'Débutant' },
+          { value: 'Intermediate', label: 'Intermédiaire' },
+          { value: 'Experienced', label: 'Expérimenté' },
           { value: 'Pro', label: 'Pro' },
         ]}
       />
 
       <FieldSelect
-        label="Mode \u00e9quipage"
+        label="Mode équipage"
         value={data.crew_mode}
         onChange={(v) => update('crew_mode', v)}
         options={[
-          { value: '', label: 'S\u00e9lectionner...' },
+          { value: '', label: 'Sélectionner...' },
           { value: 'Solo', label: 'Solo' },
           { value: 'Duo', label: 'Duo' },
           { value: 'Family', label: 'Famille' },
-          { value: 'Full crew', label: '\u00c9quipage complet' },
+          { value: 'Full crew', label: 'Équipage complet' },
         ]}
       />
 
       <FieldSelect
-        label="Tol\u00e9rance au risque"
+        label="Tolérance au risque"
         value={data.risk_tolerance}
         onChange={(v) => update('risk_tolerance', v)}
         options={[
-          { value: '', label: 'S\u00e9lectionner...' },
+          { value: '', label: 'Sélectionner...' },
           { value: 'Cautious', label: 'Prudent' },
-          { value: 'Moderate', label: 'Mod\u00e9r\u00e9' },
+          { value: 'Moderate', label: 'Modéré' },
           { value: 'Bold', label: 'Audacieux' },
         ]}
       />
@@ -281,10 +281,10 @@ function StepProfile({
         value={data.night_sailing}
         onChange={(v) => update('night_sailing', v)}
         options={[
-          { value: '', label: 'S\u00e9lectionner...' },
+          { value: '', label: 'Sélectionner...' },
           { value: 'No', label: 'Non' },
           { value: 'Yes', label: 'Oui' },
-          { value: 'Only if necessary', label: 'Seulement si n\u00e9cessaire' },
+          { value: 'Only if necessary', label: 'Seulement si nécessaire' },
         ]}
       />
 
@@ -303,11 +303,13 @@ function StepVoyage({
   onChange,
   boatData,
   profileData,
+  onRouteConfirmed,
 }: {
   data: VoyageData
   onChange: (data: VoyageData) => void
   boatData: BoatData
   profileData: ProfileData
+  onRouteConfirmed: (route: RouteOption | null) => void
 }) {
   const [routeOptions, setRouteOptions] = useState<RouteOption[]>([])
   const [selectedRoute, setSelectedRoute] = useState<string | null>(null)
@@ -323,6 +325,7 @@ function StepVoyage({
     setRouteOptions([])
     setSelectedRoute(null)
     setConfirmed(false)
+    onRouteConfirmed(null)
   }
 
   const generateRoutes = async (customText?: string) => {
@@ -369,14 +372,14 @@ function StepVoyage({
       })
 
       if (!res.ok) {
-        throw new Error('Erreur lors de la g\u00e9n\u00e9ration des routes')
+        throw new Error('Erreur lors de la génération des routes')
       }
 
       const result = await res.json()
       setRouteOptions(result.options || [])
     } catch {
       setRouteError(
-        'Impossible de g\u00e9n\u00e9rer les itin\u00e9raires. V\u00e9rifiez votre connexion et r\u00e9essayez.'
+        'Impossible de générer les itinéraires. Vérifiez votre connexion et réessayez.'
       )
     } finally {
       setLoadingRoutes(false)
@@ -396,21 +399,21 @@ function StepVoyage({
             Mon Voyage
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            D\u00e9finissez votre itin\u00e9raire avec l&apos;aide de l&apos;IA
+            Définissez votre itinéraire avec l&apos;aide de l&apos;IA
           </p>
         </div>
       </div>
 
       <FieldText
         label="Nom du voyage"
-        placeholder="ex: Audierne \u2192 Nice"
+        placeholder="ex: Audierne → Nice"
         value={data.name}
         onChange={(v) => update('name', v)}
         required
       />
 
       <FieldText
-        label="Port de d\u00e9part"
+        label="Port de départ"
         placeholder="ex: Audierne"
         value={data.departure_port}
         onChange={(v) => update('departure_port', v)}
@@ -418,7 +421,7 @@ function StepVoyage({
       />
 
       <FieldText
-        label="Port d'arriv\u00e9e"
+        label="Port d'arrivée"
         placeholder="ex: Nice"
         value={data.arrival_port}
         onChange={(v) => update('arrival_port', v)}
@@ -434,7 +437,7 @@ function StepVoyage({
           className="w-full h-[52px] rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white font-semibold text-base transition-colors flex items-center justify-center gap-2"
         >
           <Sparkles className="w-5 h-5" />
-          G\u00e9n\u00e9rer les itin\u00e9raires
+          Générer les itinéraires
         </button>
       )}
 
@@ -459,7 +462,7 @@ function StepVoyage({
             onClick={() => generateRoutes()}
             className="mt-2 text-sm font-medium text-red-700 dark:text-red-400 underline min-h-[44px]"
           >
-            R\u00e9essayer
+            Réessayer
           </button>
         </div>
       )}
@@ -468,7 +471,7 @@ function StepVoyage({
       {routeOptions.length > 0 && !confirmed && (
         <div className="space-y-3">
           <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Choisissez un itin\u00e9raire :
+            Choisissez un itinéraire :
           </p>
 
           {routeOptions.map((option) => (
@@ -586,7 +589,7 @@ function StepVoyage({
               </div>
             </div>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              D\u00e9crivez votre itin\u00e9raire pr\u00e9f\u00e9r\u00e9
+              Décrivez votre itinéraire préféré
             </p>
           </button>
 
@@ -596,7 +599,7 @@ function StepVoyage({
               <textarea
                 value={customDescription}
                 onChange={(e) => setCustomDescription(e.target.value)}
-                placeholder="ex: Je veux passer par le canal du Midi mais m'arr\u00eater \u00e0 Bordeaux 3 jours..."
+                placeholder="ex: Je veux passer par le canal du Midi mais m'arrêter à Bordeaux 3 jours..."
                 rows={4}
                 className="w-full p-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none"
               />
@@ -607,7 +610,7 @@ function StepVoyage({
                 className="w-full h-[48px] rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
               >
                 <Sparkles className="w-4 h-4" />
-                G\u00e9n\u00e9rer un itin\u00e9raire personnalis\u00e9
+                Générer un itinéraire personnalisé
               </button>
             </div>
           )}
@@ -618,7 +621,7 @@ function StepVoyage({
               <div className="text-center">
                 <Map className="w-8 h-8 text-slate-400 mx-auto mb-2" />
                 <p className="text-sm text-slate-400">
-                  Aper\u00e7u de la carte
+                  Aperçu de la carte
                 </p>
               </div>
             </div>
@@ -628,11 +631,15 @@ function StepVoyage({
           {selectedRoute && (
             <button
               type="button"
-              onClick={() => setConfirmed(true)}
+              onClick={() => {
+                setConfirmed(true)
+                const route = routeOptions.find((o) => o.id === selectedRoute) ?? null
+                onRouteConfirmed(route)
+              }}
               className="w-full h-[52px] rounded-xl bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-semibold text-base transition-colors flex items-center justify-center gap-2"
             >
               <CheckCircle className="w-5 h-5" />
-              Valider l&apos;itin\u00e9raire
+              Valider l&apos;itinéraire
             </button>
           )}
         </div>
@@ -643,7 +650,7 @@ function StepVoyage({
         <div className="p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 flex items-center gap-3">
           <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0" />
           <p className="text-sm text-green-700 dark:text-green-400">
-            Itin\u00e9raire valid\u00e9 :{' '}
+            Itinéraire validé :{' '}
             <span className="font-semibold">
               {routeOptions.find((o) => o.id === selectedRoute)?.name}
             </span>
@@ -664,26 +671,26 @@ function StepDone({
   voyageData: VoyageData
 }) {
   const experienceLabels: Record<string, string> = {
-    Beginner: 'D\u00e9butant',
-    Intermediate: 'Interm\u00e9diaire',
-    Experienced: 'Exp\u00e9riment\u00e9',
+    Beginner: 'Débutant',
+    Intermediate: 'Intermédiaire',
+    Experienced: 'Expérimenté',
     Pro: 'Pro',
   }
   const crewLabels: Record<string, string> = {
     Solo: 'Solo',
     Duo: 'Duo',
     Family: 'Famille',
-    'Full crew': '\u00c9quipage complet',
+    'Full crew': 'Équipage complet',
   }
   const riskLabels: Record<string, string> = {
     Cautious: 'Prudent',
-    Moderate: 'Mod\u00e9r\u00e9',
+    Moderate: 'Modéré',
     Bold: 'Audacieux',
   }
   const nightLabels: Record<string, string> = {
     No: 'Non',
     Yes: 'Oui',
-    'Only if necessary': 'Si n\u00e9cessaire',
+    'Only if necessary': 'Si nécessaire',
   }
 
   return (
@@ -694,10 +701,10 @@ function StepDone({
         </div>
         <div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-            Termin\u00e9 !
+            Terminé !
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            V\u00e9rifiez vos informations
+            Vérifiez vos informations
           </p>
         </div>
       </div>
@@ -727,13 +734,13 @@ function StepDone({
       <SummaryCard title="Profil" icon={<User className="w-4 h-4" />}>
         {profileData.experience && (
           <SummaryRow
-            label="Exp\u00e9rience"
+            label="Expérience"
             value={experienceLabels[profileData.experience] || profileData.experience}
           />
         )}
         {profileData.crew_mode && (
           <SummaryRow
-            label="\u00c9quipage"
+            label="Équipage"
             value={crewLabels[profileData.crew_mode] || profileData.crew_mode}
           />
         )}
@@ -762,10 +769,10 @@ function StepDone({
         <SummaryCard title="Voyage" icon={<Map className="w-4 h-4" />}>
           <SummaryRow label="Nom" value={voyageData.name} />
           {voyageData.departure_port && (
-            <SummaryRow label="D\u00e9part" value={voyageData.departure_port} />
+            <SummaryRow label="Départ" value={voyageData.departure_port} />
           )}
           {voyageData.arrival_port && (
-            <SummaryRow label="Arriv\u00e9e" value={voyageData.arrival_port} />
+            <SummaryRow label="Arrivée" value={voyageData.arrival_port} />
           )}
         </SummaryCard>
       )}
@@ -932,7 +939,7 @@ const STEPS = [
   { id: 'boat', label: 'Bateau', icon: Ship },
   { id: 'profile', label: 'Profil', icon: User },
   { id: 'voyage', label: 'Voyage', icon: Map },
-  { id: 'done', label: 'Termin\u00e9', icon: CheckCircle },
+  { id: 'done', label: 'Terminé', icon: CheckCircle },
 ] as const
 
 // ── Main onboarding page ───────────────────────────────────────────────
@@ -973,6 +980,8 @@ export default function OnboardingPage() {
     departure_port: '',
     arrival_port: '',
   })
+
+  const [confirmedRoute, setConfirmedRoute] = useState<RouteOption | null>(null)
 
   const canProceed = useCallback(() => {
     switch (currentStep) {
@@ -1113,6 +1122,33 @@ export default function OnboardingPage() {
 
         if (statusError)
           throw new Error(`Statut bateau : ${statusError.message}`)
+
+        // 4b. Insert route_steps if a route was confirmed
+        if (confirmedRoute && confirmedRoute.steps.length > 0) {
+          const routeStepsPayload = confirmedRoute.steps.map((step) => ({
+            voyage_id: voyage.id,
+            order_num: step.order_num,
+            name: step.name,
+            from_port: step.from_port,
+            to_port: step.to_port,
+            from_lat: step.from_lat,
+            from_lon: step.from_lon,
+            to_lat: step.to_lat,
+            to_lon: step.to_lon,
+            distance_nm: step.distance_nm,
+            distance_km: step.distance_km,
+            phase: step.phase,
+            notes: step.notes,
+            status: 'to_do' as const,
+          }))
+
+          const { error: stepsError } = await supabase
+            .from('route_steps')
+            .insert(routeStepsPayload)
+
+          if (stepsError)
+            throw new Error(`Étapes de route : ${stepsError.message}`)
+        }
       }
 
       // 5. Mark onboarding complete
@@ -1200,6 +1236,7 @@ export default function OnboardingPage() {
               onChange={setVoyageData}
               boatData={boatData}
               profileData={profileData}
+              onRouteConfirmed={setConfirmedRoute}
             />
           )}
           {currentStep === 3 && (

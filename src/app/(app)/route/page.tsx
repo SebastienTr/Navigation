@@ -68,11 +68,11 @@ function nextStatus(current: StepStatus): StepStatus {
 function statusLabel(status: StepStatus): string {
   switch (status) {
     case 'done':
-      return 'Termin\u00e9'
+      return 'Terminé'
     case 'in_progress':
       return 'En cours'
     case 'to_do':
-      return '\u00c0 faire'
+      return 'À faire'
   }
 }
 
@@ -212,7 +212,7 @@ export default function RoutePage() {
       <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-3 px-6">
         <MapPinOff className="h-12 w-12 text-gray-300 dark:text-gray-600" />
         <p className="text-center text-gray-500 dark:text-gray-400">
-          Aucun voyage actif. Cr\u00e9ez-en un depuis les Param\u00e8tres.
+          Aucun voyage actif. Créez-en un depuis les Paramètres.
         </p>
       </div>
     )
@@ -223,7 +223,7 @@ export default function RoutePage() {
       <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-3 px-6">
         <Route className="h-12 w-12 text-gray-300 dark:text-gray-600" />
         <p className="text-center text-gray-500 dark:text-gray-400">
-          Aucun itin\u00e9raire d\u00e9fini. Ajoutez-en un depuis les Param\u00e8tres.
+          Aucun itinéraire défini. Ajoutez-en un depuis les Paramètres.
         </p>
       </div>
     )
@@ -387,7 +387,7 @@ export default function RoutePage() {
       {/* Stats footer */}
       <footer className="mt-6 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
         <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-          R\u00e9sum\u00e9
+          Résumé
         </h3>
         <div className="grid grid-cols-2 gap-4">
           {/* Distance NM */}
@@ -418,7 +418,7 @@ export default function RoutePage() {
               {doneSteps}{' '}
               <span className="text-sm font-normal text-gray-400">/ {totalSteps}</span>
             </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">\u00c9tapes termin\u00e9es</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Étapes terminées</p>
           </div>
 
           {/* Current phase */}
