@@ -12,6 +12,7 @@ import {
   getVoyageLogs,
   getVoyageChecklist,
   getVoyageRouteSteps,
+  getPendingReminders,
 } from '@/lib/supabase/queries'
 import { callClaude, MODEL_CHAT } from '@/lib/ai/proxy'
 import { buildTriggerSystemPrompt } from '@/lib/ai/prompts'
@@ -32,7 +33,7 @@ type Client = SupabaseClient<Database>
 // ── Types ─────────────────────────────────────────────────────────────────
 
 export interface FiredTrigger {
-  type: TriggerType
+  type: TriggerType | 'reminder'
   details: string
   message: string
 }
@@ -170,7 +171,25 @@ export async function evaluateTriggers(
   // Filter to only fired triggers
   const fired = ruleResults.filter((r) => r.fired)
 
-  if (fired.length === 0) return []
+  // Évaluer les reminders en attente
+  const pendingReminders = await getPendingReminders(supabase, voyageId).catch(() => [])
+
+  // Marquer les reminders comme fired
+  const reminderTriggers: FiredTrigger[] = []
+  for (const reminder of pendingReminders) {
+    await supabase
+      .from('reminders')
+      .update({ status: 'fired', fired_at: new Date().toISOString() })
+      .eq('id', reminder.id)
+
+    reminderTriggers.push({
+      type: 'reminder',
+      details: `Rappel: ${reminder.message}`,
+      message: `${reminder.priority === 'high' ? '⚠️ ' : ''}Rappel: ${reminder.message}`,
+    })
+  }
+
+  if (fired.length === 0 && reminderTriggers.length === 0) return []
 
   // Generate Claude messages for each fired trigger in parallel
   const firedTriggers = await Promise.all(
@@ -190,5 +209,5 @@ export async function evaluateTriggers(
     })
   )
 
-  return firedTriggers
+  return [...firedTriggers, ...reminderTriggers]
 }

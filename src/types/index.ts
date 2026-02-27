@@ -16,6 +16,7 @@ export type BriefingRow = Tables['briefings']['Row']
 export type LogRow = Tables['logs']['Row']
 export type ChecklistRow = Tables['checklist']['Row']
 export type ChatHistoryRow = Tables['chat_history']['Row']
+export type ReminderRow = Tables['reminders']['Row']
 
 // ── Verdict ────────────────────────────────────────────────────────────────
 
@@ -141,6 +142,7 @@ export interface ChatContext {
   checklist: ChecklistRow[]
   latestBriefing: BriefingRow | null
   recentChat: ChatHistoryRow[]
+  reminders: ReminderRow[]
   date: string
 }
 

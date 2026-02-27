@@ -1,7 +1,20 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Send, MessageCircle, AlertCircle } from 'lucide-react'
+import {
+  Send,
+  MessageCircle,
+  AlertCircle,
+  BookOpen,
+  CheckSquare,
+  Navigation,
+  Route,
+  Bell,
+  CloudSun,
+  Loader2,
+  Check,
+  X,
+} from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { useAuth } from '@/lib/auth/context'
 import { useActiveVoyage } from '@/lib/auth/hooks'
@@ -11,12 +24,24 @@ import type { Database } from '@/lib/supabase/types'
 
 type ChatMessageRow = Database['public']['Tables']['chat_history']['Row']
 
+// ── Types ────────────────────────────────────────────────────────────────────
+
+interface ToolCallInfo {
+  id: string
+  name: string
+  summary?: string
+  status: 'running' | 'success' | 'error'
+}
+
 interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
+  toolCalls: ToolCallInfo[]
   createdAt: string
 }
+
+// ── Constantes ───────────────────────────────────────────────────────────────
 
 const SUGGESTION_CHIPS = [
   'Briefing du jour',
@@ -25,10 +50,61 @@ const SUGGESTION_CHIPS = [
   'Météo actuelle',
 ] as const
 
+const TOOL_LABELS: Record<string, string> = {
+  create_log_entry: 'Journal',
+  manage_checklist: 'Checklist',
+  update_boat_status: 'État bateau',
+  update_route_progress: 'Route',
+  create_reminder: 'Rappel',
+  get_weather: 'Météo',
+}
+
+const TOOL_ICONS: Record<string, typeof BookOpen> = {
+  create_log_entry: BookOpen,
+  manage_checklist: CheckSquare,
+  update_boat_status: Navigation,
+  update_route_progress: Route,
+  create_reminder: Bell,
+  get_weather: CloudSun,
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
 function formatTime(dateStr: string): string {
   const d = new Date(dateStr)
   return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
 }
+
+/** Parse le contenu d'un message assistant (texte simple ou JSON avec tool_calls) */
+function parseAssistantContent(content: string): {
+  text: string
+  toolCalls: ToolCallInfo[]
+} {
+  // Tenter de parser le JSON pour les messages avec tool calls
+  try {
+    const parsed = JSON.parse(content) as {
+      text?: string
+      tool_calls?: Array<{ id: string; name: string; summary: string }>
+    }
+    if (parsed.text !== undefined || parsed.tool_calls !== undefined) {
+      return {
+        text: parsed.text ?? '',
+        toolCalls: (parsed.tool_calls ?? []).map((tc) => ({
+          id: tc.id,
+          name: tc.name,
+          summary: tc.summary,
+          status: 'success' as const,
+        })),
+      }
+    }
+  } catch {
+    // Pas du JSON — c'est du texte simple
+  }
+
+  return { text: content, toolCalls: [] }
+}
+
+// ── Composants ───────────────────────────────────────────────────────────────
 
 function TypingIndicator() {
   return (
@@ -41,6 +117,42 @@ function TypingIndicator() {
     </div>
   )
 }
+
+function ToolCallBadge({ toolCall }: { toolCall: ToolCallInfo }) {
+  const Icon = TOOL_ICONS[toolCall.name] ?? Navigation
+  const label = TOOL_LABELS[toolCall.name] ?? toolCall.name
+  const isRunning = toolCall.status === 'running'
+  const isError = toolCall.status === 'error'
+
+  return (
+    <div
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+        isRunning
+          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
+          : isError
+            ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300'
+            : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300'
+      }`}
+    >
+      {isRunning ? (
+        <Loader2 size={12} className="animate-spin" />
+      ) : isError ? (
+        <X size={12} />
+      ) : (
+        <Check size={12} />
+      )}
+      <Icon size={12} />
+      <span>{label}</span>
+      {toolCall.summary && !isRunning && (
+        <span className="max-w-[200px] truncate opacity-75">
+          — {toolCall.summary}
+        </span>
+      )}
+    </div>
+  )
+}
+
+// ── Page principale ──────────────────────────────────────────────────────────
 
 export default function ChatPage() {
   const { user } = useAuth()
@@ -89,12 +201,25 @@ export default function ChatPage() {
         setError('Impossible de charger l\'historique du chat.')
       } else if (data) {
         setMessages(
-          data.map((row: ChatMessageRow) => ({
-            id: row.id,
-            role: row.role,
-            content: row.content,
-            createdAt: row.created_at,
-          }))
+          data.map((row: ChatMessageRow) => {
+            if (row.role === 'assistant') {
+              const parsed = parseAssistantContent(row.content)
+              return {
+                id: row.id,
+                role: row.role,
+                content: parsed.text,
+                toolCalls: parsed.toolCalls,
+                createdAt: row.created_at,
+              }
+            }
+            return {
+              id: row.id,
+              role: row.role,
+              content: row.content,
+              toolCalls: [],
+              createdAt: row.created_at,
+            }
+          })
         )
       }
       setIsLoadingHistory(false)
@@ -117,6 +242,7 @@ export default function ChatPage() {
         id: `temp-user-${Date.now()}`,
         role: 'user',
         content: trimmedText,
+        toolCalls: [],
         createdAt: new Date().toISOString(),
       }
       setMessages((prev) => [...prev, userMessage])
@@ -127,6 +253,7 @@ export default function ChatPage() {
         id: assistantMessageId,
         role: 'assistant',
         content: '',
+        toolCalls: [],
         createdAt: new Date().toISOString(),
       }
 
@@ -174,7 +301,16 @@ export default function ChatPage() {
             if (!line.startsWith('data: ')) continue
 
             try {
-              const json = JSON.parse(line.slice(6))
+              const json = JSON.parse(line.slice(6)) as {
+                type: string
+                text?: string
+                tool_name?: string
+                tool_call_id?: string
+                success?: boolean
+                summary?: string
+                error?: string
+              }
+
               if (json.type === 'text_delta' && json.text) {
                 accumulated += json.text
                 setMessages((prev) =>
@@ -184,13 +320,49 @@ export default function ChatPage() {
                       : msg
                   )
                 )
+              } else if (json.type === 'tool_call_start') {
+                // Ajouter un tool call en cours au message
+                const newToolCall: ToolCallInfo = {
+                  id: json.tool_call_id!,
+                  name: json.tool_name!,
+                  status: 'running',
+                }
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, toolCalls: [...msg.toolCalls, newToolCall] }
+                      : msg
+                  )
+                )
+              } else if (json.type === 'tool_call_result') {
+                // Mettre à jour le statut du tool call
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMessageId
+                      ? {
+                          ...msg,
+                          toolCalls: msg.toolCalls.map((tc) =>
+                            tc.id === json.tool_call_id
+                              ? {
+                                  ...tc,
+                                  status: json.success ? ('success' as const) : ('error' as const),
+                                  summary: json.summary,
+                                }
+                              : tc
+                          ),
+                        }
+                      : msg
+                  )
+                )
               } else if (json.type === 'error') {
                 throw new Error(json.error || 'Erreur du serveur')
               }
               // 'message_stop' — stream terminé, rien à faire
             } catch (parseErr) {
-              // Ignore malformed SSE lines
-              if (parseErr instanceof Error && parseErr.message !== 'Erreur du serveur') {
+              if (
+                parseErr instanceof Error &&
+                parseErr.message !== 'Erreur du serveur'
+              ) {
                 continue
               }
               throw parseErr
@@ -206,7 +378,12 @@ export default function ChatPage() {
 
         // Remove the empty assistant message if it was added
         setMessages((prev) =>
-          prev.filter((msg) => msg.id !== assistantMessageId || msg.content !== '')
+          prev.filter(
+            (msg) =>
+              msg.id !== assistantMessageId ||
+              msg.content !== '' ||
+              msg.toolCalls.length > 0
+          )
         )
       } finally {
         setIsStreaming(false)
@@ -270,10 +447,7 @@ export default function ChatPage() {
       </header>
 
       {/* Messages area */}
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto px-4 py-4"
-      >
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
         {isLoadingHistory ? (
           <div className="flex h-full items-center justify-center">
             <LoadingSpinner text="Chargement des messages..." size="sm" />
@@ -321,21 +495,34 @@ export default function ChatPage() {
                   }`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${
+                    className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
                       msg.role === 'user'
                         ? 'rounded-br-sm bg-blue-600 text-white'
                         : 'rounded-bl-sm bg-gray-200 text-gray-900 dark:bg-gray-800 dark:text-gray-100'
                     }`}
                   >
-                    {msg.role === 'assistant' ? (
-                      <div className="prose-chat text-[15px] leading-relaxed">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    {/* Tool call indicators */}
+                    {msg.toolCalls.length > 0 && (
+                      <div className="mb-2 flex flex-wrap gap-1.5">
+                        {msg.toolCalls.map((tc) => (
+                          <ToolCallBadge key={tc.id} toolCall={tc} />
+                        ))}
                       </div>
+                    )}
+
+                    {/* Message content */}
+                    {msg.role === 'assistant' ? (
+                      msg.content ? (
+                        <div className="prose-chat text-[15px] leading-relaxed">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </div>
+                      ) : null
                     ) : (
                       <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
                         {msg.content}
                       </p>
                     )}
+
                     <p
                       className={`mt-1 text-[10px] ${
                         msg.role === 'user'
@@ -352,7 +539,8 @@ export default function ChatPage() {
               {/* Typing indicator */}
               {isStreaming &&
                 messages.length > 0 &&
-                messages[messages.length - 1].content === '' && (
+                messages[messages.length - 1].content === '' &&
+                messages[messages.length - 1].toolCalls.length === 0 && (
                   <TypingIndicator />
                 )}
             </div>

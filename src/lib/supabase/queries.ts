@@ -12,6 +12,7 @@ type BriefingRow = Tables['briefings']['Row']
 type LogRow = Tables['logs']['Row']
 type ChecklistRow = Tables['checklist']['Row']
 type ChatHistoryRow = Tables['chat_history']['Row']
+type ReminderRow = Tables['reminders']['Row']
 
 type Client = SupabaseClient<Database>
 
@@ -267,6 +268,42 @@ export async function getVoyageChatHistory(
     .order('created_at', { ascending: true })
     .limit(limit)
     .returns<ChatHistoryRow[]>()
+
+  if (error) throw error
+  return data ?? []
+}
+
+// ── Reminders ──────────────────────────────────────────────────────────
+
+export async function getVoyageReminders(
+  supabase: Client,
+  voyageId: string,
+  limit: number = 20
+): Promise<ReminderRow[]> {
+  const { data, error } = await supabase
+    .from('reminders')
+    .select('*')
+    .eq('voyage_id', voyageId)
+    .order('remind_at', { ascending: true })
+    .limit(limit)
+    .returns<ReminderRow[]>()
+
+  if (error) throw error
+  return data ?? []
+}
+
+export async function getPendingReminders(
+  supabase: Client,
+  voyageId: string
+): Promise<ReminderRow[]> {
+  const { data, error } = await supabase
+    .from('reminders')
+    .select('*')
+    .eq('voyage_id', voyageId)
+    .eq('status', 'pending')
+    .lte('remind_at', new Date().toISOString())
+    .order('remind_at', { ascending: true })
+    .returns<ReminderRow[]>()
 
   if (error) throw error
   return data ?? []

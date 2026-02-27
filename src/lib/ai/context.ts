@@ -11,6 +11,7 @@ import {
   getVoyageChecklist,
   getLatestBriefing,
   getVoyageChatHistory,
+  getVoyageReminders,
 } from '@/lib/supabase/queries'
 import type {
   BriefingContext,
@@ -20,6 +21,7 @@ import type {
   TideData,
   BoatRow,
   NavProfileRow,
+  ReminderRow,
 } from '@/types'
 
 type Client = SupabaseClient<Database>
@@ -196,6 +198,7 @@ export async function buildChatContext(
     checklist,
     latestBriefing,
     recentChat,
+    reminders,
   ] = await Promise.all([
     getVoyageBoatAndProfile(supabase, userId, voyageId),
     getVoyageBoatStatus(supabase, voyageId),
@@ -204,6 +207,7 @@ export async function buildChatContext(
     getVoyageChecklist(supabase, voyageId),
     getLatestBriefing(supabase, voyageId),
     getVoyageChatHistory(supabase, voyageId, 20),
+    getVoyageReminders(supabase, voyageId, 10),
   ])
 
   const currentStep = findCurrentStep(routeSteps, boatStatus?.current_step_id ?? null)
@@ -233,6 +237,7 @@ export async function buildChatContext(
     checklist,
     latestBriefing,
     recentChat,
+    reminders,
     date: new Date().toISOString().split('T')[0],
   }
 }

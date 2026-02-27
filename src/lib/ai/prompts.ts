@@ -3,6 +3,7 @@ import type {
   ChatContext,
   TriggerContext,
   TriggerType,
+  ReminderRow,
 } from '@/types'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -140,6 +141,24 @@ function formatChecklist(checklist: BriefingContext['checklist']): string {
   return result.trim()
 }
 
+function formatReminders(reminders: ReminderRow[]): string {
+  const pending = reminders.filter((r) => r.status === 'pending')
+  if (pending.length === 0) return 'Aucun rappel programmé.'
+
+  return pending
+    .map((r) => {
+      const date = new Date(r.remind_at).toLocaleString('fr-FR', {
+        timeZone: 'Europe/Paris',
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+      return `- [${r.priority}] ${date}: ${r.message} (${r.category})`
+    })
+    .join('\n')
+}
+
 // ── BRIEFING SYSTEM PROMPT ─────────────────────────────────────────────────
 
 export function buildBriefingSystemPrompt(ctx: BriefingContext): string {
@@ -261,6 +280,9 @@ ${ctx.tides?.summary ?? 'Données de marée indisponibles.'}
 ### Checklist
 ${formatChecklist(ctx.checklist)}
 
+### Rappels programmés
+${formatReminders(ctx.reminders)}
+
 ### Dernier briefing
 ${ctx.latestBriefing ? `Date: ${ctx.latestBriefing.date}
 Verdict: ${ctx.latestBriefing.verdict ?? 'N/A'}
@@ -268,6 +290,56 @@ ${ctx.latestBriefing.content.slice(0, 500)}${ctx.latestBriefing.content.length >
 
 ### Date
 ${ctx.date}
+
+## TES CAPACITÉS D'ACTION
+
+Tu n'es pas qu'un conseiller — tu peux agir. Tu disposes des outils suivants:
+
+### create_log_entry
+Créer une entrée dans le journal de bord. Utilise-le quand le capitaine:
+- Signale une arrivée ou un départ
+- Donne des niveaux de carburant/eau
+- Rapporte un incident ou un problème
+- Veut noter quelque chose dans le journal
+Cet outil met aussi à jour automatiquement le boat_status.
+
+### manage_checklist
+Gérer la checklist du voyage. Utilise-le quand le capitaine:
+- Demande d'ajouter une tâche ("ajoute à la checklist...")
+- Veut cocher une tâche comme faite ("coche les fusées", "les feux c'est fait")
+- Demande ce qui reste à faire
+
+### update_boat_status
+Mettre à jour l'état du bateau. Utilise-le pour des changements d'état simples:
+- Changement de statut (au port, en nav, au mouillage, en canal)
+- Mise à jour de position sans entrée journal complète
+- Signalement ou résolution de problèmes
+
+### update_route_progress
+Marquer une étape comme terminée ou en cours. Utilise-le quand:
+- Le capitaine dit qu'il a fini une étape ("on a fait Lorient-Belle-Ile")
+- Il faut passer à l'étape suivante
+La suivante passe automatiquement en cours.
+
+### create_reminder
+Programmer un rappel. Utilise-le quand:
+- Le capitaine dit "rappelle-moi de..."
+- Tu juges qu'un rappel serait utile (vérification météo, marée, etc.)
+Calcule la date/heure en ISO 8601 (fuseau Europe/Paris, date du jour: ${ctx.date}).
+
+### get_weather
+Récupérer la météo pour un lieu précis. Utilise-le quand:
+- Le capitaine demande la météo d'un endroit qui n'est pas sa position actuelle
+- Tu as besoin de données météo pour une étape future
+Tu dois fournir les coordonnées GPS du lieu.
+
+## RÈGLES D'UTILISATION DES OUTILS
+- Agis d'abord, confirme ensuite. Pas besoin de demander "voulez-vous que je..." — fais-le.
+- Si le capitaine donne des infos incomplètes, utilise ce que tu as et demande le reste.
+- Après chaque action, confirme brièvement ce que tu as fait.
+- Ne fabrique jamais de données (position GPS, niveaux, etc.) — utilise uniquement ce que le capitaine fournit ou ce qui est dans le contexte.
+- Si plusieurs actions sont nécessaires (ex: "arrivé à Camaret, coche l'étape, plein de gasoil"), fais-les toutes.
+- Si tu n'es pas sûr de l'action à effectuer, demande confirmation.
 
 ## RÈGLES
 - Réponds TOUJOURS en français

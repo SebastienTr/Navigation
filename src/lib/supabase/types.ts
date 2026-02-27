@@ -539,6 +539,63 @@ export interface Database {
           }
         ]
       }
+      reminders: {
+        Row: {
+          id: string
+          created_at: string
+          user_id: string
+          voyage_id: string
+          message: string
+          remind_at: string
+          category: 'navigation' | 'safety' | 'maintenance' | 'provisions' | 'general'
+          priority: 'high' | 'medium' | 'low'
+          status: 'pending' | 'fired' | 'dismissed'
+          fired_at: string | null
+          created_by: 'ai' | 'user'
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          user_id: string
+          voyage_id: string
+          message: string
+          remind_at: string
+          category?: 'navigation' | 'safety' | 'maintenance' | 'provisions' | 'general'
+          priority?: 'high' | 'medium' | 'low'
+          status?: 'pending' | 'fired' | 'dismissed'
+          fired_at?: string | null
+          created_by?: 'ai' | 'user'
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          user_id?: string
+          voyage_id?: string
+          message?: string
+          remind_at?: string
+          category?: 'navigation' | 'safety' | 'maintenance' | 'provisions' | 'general'
+          priority?: 'high' | 'medium' | 'low'
+          status?: 'pending' | 'fired' | 'dismissed'
+          fired_at?: string | null
+          created_by?: 'ai' | 'user'
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_voyage_id_fkey"
+            columns: ["voyage_id"]
+            isOneToOne: false
+            referencedRelation: "voyages"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       push_subscriptions: {
         Row: {
           id: string

@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
+import type Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { buildChatContext } from '@/lib/ai/context'
 import { buildChatSystemPrompt } from '@/lib/ai/prompts'
-import { streamClaude, MODEL_CHAT } from '@/lib/ai/proxy'
+import {
+  callClaudeWithTools,
+  MODEL_CHAT_TOOLS,
+  type CallClaudeWithToolsResult,
+} from '@/lib/ai/proxy'
 import { getVoyageChatHistory } from '@/lib/supabase/queries'
-import type { AIMessage } from '@/types'
 
 interface ChatRequestBody {
   message: string
@@ -72,8 +77,9 @@ export async function POST(request: NextRequest) {
     )
 
     // Build messages array with history + new message
-    const messages: AIMessage[] = recentHistory.map((msg) => ({
-      role: msg.role,
+    // On reconstruit les messages Anthropic avec le bon format
+    const messages: Anthropic.MessageParam[] = recentHistory.map((msg) => ({
+      role: msg.role as 'user' | 'assistant',
       content: msg.content,
     }))
     messages.push({ role: 'user', content: body.message })
@@ -97,74 +103,110 @@ export async function POST(request: NextRequest) {
       console.error('Failed to save user message:', insertUserError)
     }
 
-    // Stream Claude response, collect it, and save to DB
-    const stream = streamClaude({
-      messages,
-      systemPrompt,
-      model: MODEL_CHAT,
-      maxTokens: 2048,
-    })
+    // Admin client pour les tool handlers (bypass RLS, auth vérifiée ci-dessus)
+    const adminSupabase = createAdminClient()
 
-    // We need to tee the stream: one branch for the client, one to collect for DB save
-    const [clientStream, collectStream] = stream.tee()
+    // Construire le ReadableStream SSE avec la boucle agentique
+    const encoder = new TextEncoder()
 
-    // Collect the full response in the background and save to DB
-    const savePromise = (async () => {
-      const reader = collectStream.getReader()
-      const decoder = new TextDecoder()
-      let fullText = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split('\n')
-
-        for (const line of lines) {
-          if (line.startsWith('data: ') && !line.includes('[DONE]') && !line.includes('"type":"message_stop"') && !line.includes('"type":"error"')) {
-            try {
-              const parsed = JSON.parse(line.slice(6)) as {
-                type?: string
-                text?: string
-              }
-              if (parsed.text) {
-                fullText += parsed.text
-              }
-            } catch {
-              // Skip malformed lines
-            }
-          }
-        }
-      }
-
-      // Save assistant response
-      if (fullText.length > 0) {
-        const { error: insertAssistantError } = await supabase
-          .from('chat_history')
-          .insert({
-            user_id: user.id,
-            voyage_id: body.voyageId,
-            role: 'assistant' as const,
-            content: fullText,
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        try {
+          const result: CallClaudeWithToolsResult = await callClaudeWithTools({
+            systemPrompt,
+            messages,
+            model: MODEL_CHAT_TOOLS,
+            maxTokens: 4096,
+            toolContext: {
+              supabase: adminSupabase,
+              userId: user.id,
+              voyageId: body.voyageId,
+            },
+            onToolCallStart: (event) => {
+              const sseEvent = `data: ${JSON.stringify({
+                type: 'tool_call_start',
+                tool_name: event.toolName,
+                tool_call_id: event.toolCallId,
+              })}\n\n`
+              controller.enqueue(encoder.encode(sseEvent))
+            },
+            onToolCallResult: (event) => {
+              const sseEvent = `data: ${JSON.stringify({
+                type: 'tool_call_result',
+                tool_call_id: event.toolCallId,
+                tool_name: event.toolName,
+                success: event.result.success,
+                summary: event.result.summary,
+              })}\n\n`
+              controller.enqueue(encoder.encode(sseEvent))
+            },
           })
 
-        if (insertAssistantError) {
-          console.error(
-            'Failed to save assistant message:',
-            insertAssistantError
-          )
+          // Streamer le texte final comme text_delta (pour compatibilité frontend)
+          if (result.text) {
+            // Envoyer en un seul bloc (la boucle agentique n'est pas streamée)
+            const textEvent = `data: ${JSON.stringify({
+              type: 'text_delta',
+              text: result.text,
+            })}\n\n`
+            controller.enqueue(encoder.encode(textEvent))
+          }
+
+          // Envoyer l'événement de fin
+          const doneEvent = `data: ${JSON.stringify({
+            type: 'message_stop',
+            usage: result.usage,
+          })}\n\n`
+          controller.enqueue(encoder.encode(doneEvent))
+
+          controller.close()
+
+          // Sauvegarder la réponse assistant en arrière-plan
+          if (result.text || result.toolCalls.length > 0) {
+            // Format du content : texte simple si pas de tool calls, JSON sinon
+            let content: string
+            if (result.toolCalls.length === 0) {
+              content = result.text
+            } else {
+              content = JSON.stringify({
+                text: result.text,
+                tool_calls: result.toolCalls,
+              })
+            }
+
+            const { error: insertAssistantError } = await supabase
+              .from('chat_history')
+              .insert({
+                user_id: user.id,
+                voyage_id: body.voyageId,
+                role: 'assistant' as const,
+                content,
+              })
+
+            if (insertAssistantError) {
+              console.error(
+                'Failed to save assistant message:',
+                insertAssistantError
+              )
+            }
+          }
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : 'Erreur inconnue lors de l\'appel Claude'
+
+          const errorEvent = `data: ${JSON.stringify({
+            type: 'error',
+            error: errorMessage,
+          })}\n\n`
+          controller.enqueue(encoder.encode(errorEvent))
+          controller.close()
         }
-      }
-    })()
+      },
+    })
 
-    // Don't await the save — let it complete in the background
-    // Use waitUntil if available (Vercel), otherwise fire-and-forget
-    savePromise.catch((err) =>
-      console.error('Error saving chat history:', err)
-    )
-
-    return new Response(clientStream, {
+    return new Response(stream, {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
