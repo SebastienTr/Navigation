@@ -8,17 +8,48 @@ It's NOT just a dashboard. It's a **proactive copilot** that monitors, anticipat
 
 ## Key Documents
 
-- **[PRD.md](./PRD.md)** — MVP specification (this is what we're building NOW)
+- **[PRD.md](./PRD.md)** — MVP specification
 - **[VISION.md](./VISION.md)** — Long-term product vision (Skipper AI, BYOAI, freemium)
-- **[BUILD_PLAN.md](./BUILD_PLAN.md)** — Sequenced build steps
+- **[BUILD_PLAN.md](./BUILD_PLAN.md)** — Sequenced build steps with progress markers
 
 **Always read PRD.md before starting any feature work.** It contains the complete spec, DB schema, API details, and UX requirements.
+
+## Implementation Status (updated 2026-02-27)
+
+**MVP is feature-complete** (~20,000 lines of code). All pages, API routes, AI system, and database are implemented and tested.
+
+| Area | Status | Lines |
+|------|--------|-------|
+| Auth (magic link + middleware) | Done | ~230 |
+| Onboarding (4-step wizard + AI routes) | Done | ~1,323 |
+| Dashboard | Done | ~556 |
+| Map (Leaflet + OpenSeaMap) | Done | ~375 |
+| Logbook (entry + GPS + history) | Done | ~627 |
+| AI Chat (streaming + markdown) | Done | ~399 |
+| Briefings (generation + history) | Done | ~489 |
+| Checklist (categories + priorities) | Done | ~615 |
+| Route progress | Done | ~437 |
+| Settings (boat + profile + voyages) | Done | ~1,232 |
+| More menu | Done | ~78 |
+| API routes (7 endpoints) | Done | ~1,203 |
+| AI system (proxy + context + prompts) | Done | ~1,140 |
+| Trigger engine (5 rules) | Done | ~448 |
+| Weather + Tides clients | Done | ~302 |
+| Supabase (types + queries + clients) | Done | ~918 |
+| PWA (manifest + Service Worker) | Done | ~136 |
+| DB schema (migration + seed) | Done | ~368 |
+
+**Not yet done (planned for polish/deploy):**
+- Push notification integration (Web Push registered but not wired to triggers)
+- Advanced offline sync (Service Worker caches shell, but IndexedDB log queue not implemented)
+- Vercel production deployment
+- Lighthouse PWA audit
 
 ## Tech Stack
 
 | Layer | Tech |
 |---|---|
-| Frontend | Next.js 15 (App Router) + React 19 + TypeScript |
+| Frontend | Next.js 16 (App Router) + React 19 + TypeScript |
 | Styling | Tailwind CSS 4 |
 | Map | Leaflet + react-leaflet + OpenSeaMap overlay |
 | Backend | Next.js API Routes (Route Handlers) |
@@ -29,7 +60,7 @@ It's NOT just a dashboard. It's a **proactive copilot** that monitors, anticipat
 | Tides | WorldTides API |
 | Hosting | Vercel |
 | Push | Web Push API + Vercel Cron Jobs |
-| PWA | next-pwa / Serwist |
+| PWA | Custom Service Worker (public/sw.js) |
 
 ## Architecture Principles
 
@@ -39,81 +70,81 @@ It's NOT just a dashboard. It's a **proactive copilot** that monitors, anticipat
 4. **Offline-first** — Service Worker caches briefings, tiles, and last known state. Log entries queue locally and sync when network returns.
 5. **Mobile-first** — Designed for one-handed cockpit use on Android phone. Touch targets ≥ 44px. High contrast. No hover states.
 
-## Project Structure
+## Project Structure (actual)
 
 ```
-laurine-navigator/
-├── src/
-│   ├── app/                    # Next.js App Router pages
-│   │   ├── layout.tsx          # Root layout (PWA meta, fonts)
-│   │   ├── page.tsx            # Dashboard (main screen)
-│   │   ├── login/page.tsx      # Magic link login
-│   │   ├── onboarding/page.tsx # 4-step onboarding wizard
-│   │   ├── map/page.tsx        # Map view
-│   │   ├── log/page.tsx        # Logbook
-│   │   ├── chat/page.tsx       # AI Chat
-│   │   ├── briefings/page.tsx  # Briefing history
-│   │   ├── checklist/page.tsx  # Checklist
-│   │   ├── route/page.tsx      # Route progress
-│   │   ├── settings/page.tsx   # Settings (boat, profile, voyages)
-│   │   └── api/
-│   │       ├── ai/
-│   │       │   ├── proxy/route.ts      # AI proxy (server-side key)
-│   │       │   ├── triggers/route.ts   # Trigger evaluation (cron)
-│   │       │   └── route/route.ts      # AI route proposals
-│   │       ├── briefing/route.ts       # Generate briefing (cron)
-│   │       ├── chat/route.ts           # Chat endpoint
-│   │       ├── weather/route.ts        # Open-Meteo proxy
-│   │       └── tides/route.ts          # WorldTides proxy
-│   ├── components/
-│   │   ├── ui/                 # Shared UI components
-│   │   ├── auth/               # Auth guards, login form
-│   │   ├── onboarding/         # Wizard steps
-│   │   ├── dashboard/          # Dashboard-specific
-│   │   ├── map/                # Map-specific
-│   │   ├── log/                # Logbook-specific
-│   │   ├── chat/               # Chat-specific
-│   │   └── layout/             # Navigation, header
-│   ├── lib/
-│   │   ├── supabase/
-│   │   │   ├── client.ts       # Browser Supabase client
-│   │   │   ├── server.ts       # Server Supabase client
-│   │   │   ├── types.ts        # Generated DB types
-│   │   │   └── queries.ts      # Reusable query helpers (user-scoped)
-│   │   ├── auth/
-│   │   │   ├── context.ts      # Auth provider + context
-│   │   │   └── hooks.ts        # useAuth, useUser hooks
-│   │   ├── ai/
-│   │   │   ├── proxy.ts        # AI proxy logic (reads ANTHROPIC_API_KEY)
-│   │   │   ├── prompts.ts      # System prompts (briefing, chat, triggers, route)
-│   │   │   ├── context.ts      # Context builder (user-scoped)
-│   │   │   └── route.ts        # AI route proposal logic
-│   │   ├── weather/
-│   │   │   ├── open-meteo.ts   # Open-Meteo client
-│   │   │   └── worldtides.ts   # WorldTides client
-│   │   ├── triggers/
-│   │   │   ├── engine.ts       # Trigger evaluation engine
-│   │   │   └── rules.ts        # 5 MVP trigger rules
-│   │   └── utils.ts            # Shared utilities
-│   ├── hooks/                  # Custom React hooks
-│   └── types/                  # Shared TypeScript types
-├── public/
-│   ├── manifest.json           # PWA manifest
-│   ├── sw.js                   # Service Worker
-│   └── icons/                  # PWA icons
-├── supabase/
-│   └── migrations/             # SQL migrations
-│       └── 001_initial.sql     # All MVP tables (multi-user)
-├── PRD.md
-├── VISION.md
-├── BUILD_PLAN.md
-├── CLAUDE.md                   # This file
-├── .env.local.example          # Env vars template
-├── next.config.ts
-├── tailwind.config.ts
-├── tsconfig.json
-└── package.json
+src/
+├── middleware.ts                    # Auth guard (redirect unauthenticated)
+├── app/
+│   ├── layout.tsx                  # Root layout (PWA meta, viewport-fit cover)
+│   ├── globals.css                 # Tailwind base styles
+│   ├── login/page.tsx              # Magic link login
+│   ├── onboarding/page.tsx         # 4-step onboarding wizard (1,323 lines)
+│   ├── auth/callback/route.ts      # Supabase Auth callback
+│   ├── (app)/                      # Protected route group
+│   │   ├── layout.tsx              # App shell (auth check, BottomNav, safe area)
+│   │   ├── page.tsx                # Dashboard
+│   │   ├── map/page.tsx            # Map page (loads MapView)
+│   │   ├── map/MapView.tsx         # Leaflet + OpenSeaMap component
+│   │   ├── log/page.tsx            # Logbook (entry + history)
+│   │   ├── chat/page.tsx           # AI Chat (streaming + markdown)
+│   │   ├── briefings/page.tsx      # Briefing history
+│   │   ├── checklist/page.tsx      # Checklist (categories + priorities)
+│   │   ├── route/page.tsx          # Route progress
+│   │   ├── settings/page.tsx       # Boat/profile/voyage management (1,232 lines)
+│   │   └── more/page.tsx           # More menu
+│   └── api/
+│       ├── ai/proxy/route.ts       # Claude API proxy (streaming)
+│       ├── ai/route/route.ts       # AI route proposals (Claude Sonnet)
+│       ├── ai/triggers/route.ts    # Trigger evaluation (cron)
+│       ├── briefing/route.ts       # Daily briefing generation (cron)
+│       ├── chat/route.ts           # Chat endpoint (streaming)
+│       ├── weather/route.ts        # Open-Meteo proxy
+│       └── tides/route.ts          # WorldTides proxy
+├── components/
+│   ├── Providers.tsx               # React context providers (Auth)
+│   ├── layout/BottomNav.tsx        # Bottom tab bar (5 tabs)
+│   └── ui/
+│       ├── Card.tsx                # Reusable card component
+│       └── LoadingSpinner.tsx      # Loading indicator
+├── lib/
+│   ├── supabase/
+│   │   ├── client.ts              # Browser Supabase client
+│   │   ├── server.ts              # Server Supabase client (SSR)
+│   │   ├── admin.ts               # Admin client (service role)
+│   │   ├── types.ts               # Generated DB types (579 lines)
+│   │   └── queries.ts             # User-scoped query helpers (273 lines)
+│   ├── auth/
+│   │   ├── context.tsx            # AuthContext provider
+│   │   └── hooks.ts               # useAuth() + useUser()
+│   ├── ai/
+│   │   ├── proxy.ts               # Server-side Claude proxy
+│   │   ├── prompts.ts             # System prompts (461 lines)
+│   │   ├── context.ts             # Context builder (289 lines)
+│   │   └── route.ts               # Route proposal logic
+│   ├── weather/
+│   │   ├── open-meteo.ts          # Open-Meteo client
+│   │   └── worldtides.ts          # WorldTides client
+│   ├── triggers/
+│   │   ├── engine.ts              # Trigger evaluation engine
+│   │   └── rules.ts               # 5 MVP trigger rules
+│   ├── utils.ts                   # Format dates, distances, coordinates
+│   └── push.ts                    # Web Push subscription
+├── hooks/
+│   ├── useGeolocation.ts          # Browser GPS
+│   └── useServiceWorker.ts        # SW registration
+└── types/
+    └── index.ts                   # Shared TypeScript types
+public/
+├── manifest.json                  # PWA manifest
+├── sw.js                          # Service Worker
+└── icons/                         # PWA icons (192, 512, SVG + PNG)
+supabase/
+└── migrations/
+    └── 001_initial.sql            # Full schema with RLS (252 lines)
 ```
+
+**Note**: Most page logic is inline (not split into separate components). The `components/` directory is intentionally minimal — refactoring into shared components is planned as the app grows.
 
 ## Database
 

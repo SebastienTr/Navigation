@@ -2,9 +2,21 @@
 
 Sequential build steps for Claude Code. Each step is self-contained and testable.
 
+## Progress Summary (updated 2026-02-27)
+
+| Phase | Status |
+|-------|--------|
+| Phase 1: Setup & Auth | DONE |
+| Phase 1.5: Auth & Onboarding | DONE |
+| Phase 2: Backend Core | DONE |
+| Phase 3: Frontend Core | DONE |
+| Phase 4: AI Features | DONE |
+| Phase 5: Settings & Polish | PARTIAL (settings done, push/offline pending) |
+| Phase 6: Test & Deploy | NOT STARTED |
+
 ---
 
-## Phase 1: Setup & Auth (Day 1-2)
+## Phase 1: Setup & Auth (Day 1-2) — DONE
 
 ### Step 1.1 — Project Scaffolding
 ```bash
@@ -68,11 +80,11 @@ npm install date-fns                # Date utilities
 - Configure Serwist/next-pwa in `next.config.ts`
 - Basic Service Worker for offline shell caching
 
-**Checkpoint:** Auth system working, protected routes configured, schema ready.
+**Checkpoint:** Auth system working, protected routes configured, schema ready. DONE
 
 ---
 
-## Phase 1.5: Auth & Onboarding (Day 2)
+## Phase 1.5: Auth & Onboarding (Day 2) — DONE
 
 ### Step 1.5.1 — Login Page
 `src/app/login/page.tsx`
@@ -131,11 +143,11 @@ All steps validated before moving to next. Back button available.
 - `src/lib/auth/useUser.ts` — `useUser()` hook to get current user + boats + voyages
 - `src/lib/auth/protectedComponent.tsx` — HOC for redirecting to login/onboarding
 
-**Checkpoint:** Full auth flow working. Users can sign up, complete onboarding, be redirected to dashboard.
+**Checkpoint:** Full auth flow working. Users can sign up, complete onboarding, be redirected to dashboard. DONE
 
 ---
 
-## Phase 2: Backend Core (Day 3-4)
+## Phase 2: Backend Core (Day 3-4) — DONE
 
 ### Step 2.1 — AI Route Generation API
 - `src/lib/ai/route.ts` — Route proposal logic:
@@ -189,11 +201,11 @@ All steps validated before moving to next. Back button available.
   - `TRIGGER_SYSTEM_PROMPT` — Evaluate conditions, generate short messages
   - `ROUTE_SYSTEM_PROMPT` — Generate route proposals from departure/arrival, boat specs, nav profile. Returns structured JSON with 2-3 options (or 1 custom). Considers draft, air draft, fuel range, experience level, risk tolerance.
 
-**Checkpoint:** Can call weather/tides APIs. Can call Claude via AI proxy with multi-user context. Prompts are defined.
+**Checkpoint:** Can call weather/tides APIs. Can call Claude via AI proxy with multi-user context. Prompts are defined. DONE
 
 ---
 
-## Phase 3: Frontend Core (Day 4-6)
+## Phase 3: Frontend Core (Day 4-6) — DONE
 
 ### Step 3.1 — Dashboard
 `src/app/page.tsx` + `src/components/dashboard/`
@@ -264,11 +276,11 @@ All steps validated before moving to next. Back button available.
 - Add new task button
 - **Scoped to active voyage**
 
-**Checkpoint:** All main screens working with real Supabase data. Can log entries, view route, manage checklist. Multi-user working, data scoped correctly.
+**Checkpoint:** All main screens working with real Supabase data. Can log entries, view route, manage checklist. Multi-user working, data scoped correctly. DONE
 
 ---
 
-## Phase 4: AI Features (Day 6-7)
+## Phase 4: AI Features (Day 6-7) — DONE
 
 ### Step 4.1 — Daily Briefing System
 - `src/app/api/briefing/route.ts` — Briefing generation endpoint:
@@ -333,14 +345,14 @@ Note: UTC times (4am UTC = 5am France winter, 6am summer). Adjust for season.
 - Loop through and call briefing/trigger logic for each user
 - Include proper error handling and logging
 
-**Checkpoint:** Briefing generates and displays. Chat works with streaming. Triggers evaluate and fire. Cron configured for multi-user.
+**Checkpoint:** Briefing generates and displays. Chat works with streaming. Triggers evaluate and fire. Cron configured for multi-user. DONE
 
 ---
 
-## Phase 5: Settings & Polish (Day 7-8)
+## Phase 5: Settings & Polish (Day 7-8) — PARTIAL
 
-### Step 5.1 — Settings Page
-`src/app/settings/page.tsx`
+### Step 5.1 — Settings Page — DONE
+`src/app/(app)/settings/page.tsx` (1,232 lines)
 
 - **My Boats** section:
   - List of boats with edit button
@@ -358,40 +370,39 @@ Note: UTC times (4am UTC = 5am France winter, 6am summer). Adjust for season.
   - Logout button
   - Delete account (with confirmation)
 
-### Step 5.2 — Push Notifications
+### Step 5.2 — Push Notifications — PARTIAL
 - `src/lib/push.ts` — Web Push setup:
   - Generate VAPID keys (one-time setup)
   - Subscribe to push in browser (on first app launch + consent)
   - `sendPush(title, body, userId, voyageId)` from server
   - Store subscriptions in Supabase table
-- Integrate with briefing generation + trigger engine
-- Permission request on first app launch
+- **Done**: push.ts exists with subscription logic
+- **TODO**: Wire push notifications to briefing generation + trigger engine
+- **TODO**: Permission request on first app launch
 
-### Step 5.3 — Offline Support
-- Enhanced Service Worker:
-  - Cache all app shell pages
-  - Cache latest briefing per voyage
-  - Cache map tiles for current zone + 100 NM buffer
-  - Cache latest weather data
-- Log queue: save to IndexedDB when offline → sync batch on reconnect
-- Offline indicator badge in UI
-- "Last updated X ago" timestamps everywhere
+### Step 5.3 — Offline Support — PARTIAL
+- **Done**: Basic Service Worker (`public/sw.js`, 112 lines) caches app shell and static assets
+- **TODO**: Cache latest briefing per voyage
+- **TODO**: Cache map tiles for current zone + 100 NM buffer
+- **TODO**: Log queue (IndexedDB when offline → sync on reconnect)
+- **TODO**: Offline indicator badge in UI
+- **TODO**: "Last updated X ago" timestamps everywhere
 
-### Step 5.4 — UI Polish
-- Loading skeletons for all data-dependent components
-- Error states with retry buttons
-- Empty states with helpful messages
-- Smooth page transitions
-- Pull-to-refresh on Dashboard
-- Haptic feedback on verdict tap (if supported)
-- Proper meta tags for PWA (theme-color, apple-touch-icon, etc.)
-- **All screens aware of active voyage context**
+### Step 5.4 — UI Polish — PARTIAL
+- **Done**: Empty states with helpful messages (all pages)
+- **Done**: PWA meta tags (theme-color, apple-touch-icon, viewport-fit cover, safe area padding)
+- **Done**: Dark mode support (Tailwind `dark:` classes)
+- **Done**: French language for all user-facing text
+- **Done**: Active voyage context on all screens
+- **TODO**: Loading skeletons for data-dependent components
+- **TODO**: Pull-to-refresh on Dashboard
+- **TODO**: Haptic feedback on verdict tap
 
-**Checkpoint:** Full app working end-to-end with settings, push, offline. Multi-user fully integrated. Ready for real-world testing.
+**Checkpoint:** Settings done. Push and offline support partially implemented. UI polish ongoing.
 
 ---
 
-## Phase 6: Test & Deploy (Day 8-9)
+## Phase 6: Test & Deploy (Day 8-9) — NOT STARTED
 
 ### Step 6.1 — Data Seeding & Test Setup
 - Use `supabase/seed.sql` templates as reference data for development/testing

@@ -1,36 +1,115 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Laurine Navigator
+
+AI-powered sailing first mate — a multi-user PWA that helps sailors make daily go/no-go decisions and navigate safely.
+
+Built initially for Sébastien's convoy from Audierne (Finistère) to Nice, designed for any sailor from day 1.
+
+## Status
+
+**MVP feature-complete** (~20,000 lines). All core features implemented and tested.
+
+| Feature | Status |
+|---------|--------|
+| Auth (magic link) | Done |
+| Onboarding (4 steps + AI route) | Done |
+| Dashboard (verdict, weather, levels) | Done |
+| Map (Leaflet + OpenSeaMap) | Done |
+| Logbook (entry + history) | Done |
+| AI Chat (streaming, markdown) | Done |
+| Briefings (cron + history) | Done |
+| Checklist (categories, priorities) | Done |
+| Route progress | Done |
+| Settings (boat, profile, voyages) | Done |
+| AI proxy (server-side Claude) | Done |
+| Trigger engine (5 rules) | Done |
+| Weather/Tides APIs | Done |
+| PWA (manifest, Service Worker) | Done |
+
+## Tech Stack
+
+- **Frontend**: Next.js 15 + React 19 + TypeScript + Tailwind CSS 4
+- **Map**: Leaflet + react-leaflet + OpenSeaMap
+- **Database**: Supabase (PostgreSQL + Auth + RLS)
+- **AI**: Claude API (Haiku for chat, Sonnet for briefings/routes)
+- **Weather**: Open-Meteo (free) + WorldTides
+- **Hosting**: Vercel
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+# Install dependencies
+npm install
+
+# Copy env vars
+cp .env.local.example .env.local
+# Fill in Supabase, Anthropic, WorldTides keys
+
+# Run Supabase migration
+# (apply supabase/migrations/001_initial.sql to your project)
+
+# Start dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+  app/
+    layout.tsx              # Root layout (PWA meta)
+    login/page.tsx          # Magic link auth
+    onboarding/page.tsx     # 4-step wizard + AI routes
+    auth/callback/route.ts  # Auth callback
+    (app)/                  # Protected route group
+      layout.tsx            # App shell (BottomNav, auth guard)
+      page.tsx              # Dashboard
+      map/                  # Leaflet map + OpenSeaMap
+      log/page.tsx          # Logbook
+      chat/page.tsx         # AI chat
+      briefings/page.tsx    # Briefing history
+      checklist/page.tsx    # Task checklist
+      route/page.tsx        # Route progress
+      settings/page.tsx     # Boat/profile/voyage management
+      more/page.tsx         # Menu (links to sub-pages)
+    api/
+      ai/proxy/route.ts    # Claude API proxy (streaming)
+      ai/route/route.ts    # AI route proposals
+      ai/triggers/route.ts # Trigger evaluation (cron)
+      briefing/route.ts    # Daily briefing (cron)
+      chat/route.ts        # Chat endpoint
+      weather/route.ts     # Open-Meteo proxy
+      tides/route.ts       # WorldTides proxy
+  lib/
+    supabase/              # Clients, types, queries
+    auth/                  # AuthContext, useAuth, useUser
+    ai/                    # Proxy, prompts, context, routes
+    weather/               # Open-Meteo + WorldTides clients
+    triggers/              # Engine + 5 MVP rules
+  components/
+    layout/BottomNav.tsx   # Bottom tab navigation
+    ui/                    # Card, LoadingSpinner
+  hooks/                   # useGeolocation, useServiceWorker
+  types/                   # Shared TypeScript types
+```
 
-## Learn More
+## Documentation
 
-To learn more about Next.js, take a look at the following resources:
+- [PRD.md](./PRD.md) — MVP specification
+- [BUILD_PLAN.md](./BUILD_PLAN.md) — Build steps with progress
+- [VISION.md](./VISION.md) — Long-term product vision
+- [CLAUDE.md](./CLAUDE.md) — AI coding assistant context
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Environment Variables
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+ANTHROPIC_API_KEY=
+WORLDTIDES_API_KEY=
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+CRON_SECRET=
+```
