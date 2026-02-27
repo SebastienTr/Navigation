@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/ai/triggers",
-      "schedule": "0 5,9,13,17,21 * * *"
+      "schedule": "0 6 * * *"
     }
   ]
 }
