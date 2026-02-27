@@ -64,7 +64,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-gray-50 pt-[env(safe-area-inset-top)] dark:bg-gray-950">
       <main className="pb-20">{children}</main>
       <BottomNav />
     </div>

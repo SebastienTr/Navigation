@@ -36,8 +36,8 @@ function MenuItem({ href, icon: Icon, label }: MenuItemProps) {
 const menuItems: MenuItemProps[] = [
   { href: '/briefings', icon: FileText, label: 'Briefings' },
   { href: '/checklist', icon: CheckSquare, label: 'Checklist' },
-  { href: '/route', icon: Navigation, label: 'Itineraire' },
-  { href: '/settings', icon: Settings, label: 'Parametres' },
+  { href: '/route', icon: Navigation, label: 'Itinéraire' },
+  { href: '/settings', icon: Settings, label: 'Paramètres' },
 ]
 
 export default function MorePage() {
@@ -65,7 +65,7 @@ export default function MorePage() {
         >
           <LogOut size={22} className="text-red-500" />
           <span className="flex-1 text-left text-base font-medium text-red-600 dark:text-red-400">
-            Deconnexion
+            Déconnexion
           </span>
         </button>
       </div>

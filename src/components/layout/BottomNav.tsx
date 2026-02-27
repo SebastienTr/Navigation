@@ -18,7 +18,7 @@ interface NavTab {
 }
 
 const tabs: NavTab[] = [
-  { label: 'Tableau de bord', href: '/', icon: LayoutDashboard },
+  { label: 'Accueil', href: '/', icon: LayoutDashboard },
   { label: 'Carte', href: '/map', icon: Map },
   { label: 'Journal', href: '/log', icon: BookOpen },
   { label: 'Chat', href: '/chat', icon: MessageCircle },

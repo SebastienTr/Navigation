@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ChevronDown,
@@ -196,6 +196,15 @@ function BoatForm({
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Sync form when boat data arrives or changes
+  const prevBoatId = useRef(boat?.id)
+  useEffect(() => {
+    if (boat && boat.id !== prevBoatId.current) {
+      prevBoatId.current = boat.id
+      setForm(boatToFormData(boat))
+    }
+  }, [boat])
 
   const updateField = <K extends keyof BoatFormData>(
     key: K,
@@ -447,6 +456,19 @@ function ProfileForm({
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Sync state when profile data arrives async
+  const prevProfileId = useRef(profile?.id)
+  useEffect(() => {
+    if (profile && profile.id !== prevProfileId.current) {
+      prevProfileId.current = profile.id
+      setExperience(profile.experience ?? '')
+      setCrewMode(profile.crew_mode ?? '')
+      setRiskTolerance(profile.risk_tolerance ?? '')
+      setNightSailing(profile.night_sailing ?? '')
+      setMaxHours(profile.max_continuous_hours?.toString() ?? '')
+    }
+  }, [profile])
 
   const handleSave = async () => {
     setSaving(true)

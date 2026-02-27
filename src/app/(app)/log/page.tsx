@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import {
   BookOpen,
   Navigation,
@@ -126,8 +126,12 @@ export default function LogPage() {
   const [logs, setLogs] = useState<LogRow[]>([])
   const [logsLoading, setLogsLoading] = useState(true)
 
-  // Auto-detect GPS position on mount
+  // Auto-detect GPS position on mount (once only)
+  const gpsAttempted = useRef(false)
   useEffect(() => {
+    if (gpsAttempted.current) return
+    gpsAttempted.current = true
+
     if (!navigator.geolocation) return
 
     navigator.geolocation.getCurrentPosition(
@@ -139,17 +143,20 @@ export default function LogPage() {
         setPosition(`${lat.toFixed(4)}°N, ${lon.toFixed(4)}°${lon >= 0 ? 'E' : 'W'}`)
       },
       (err) => {
-        console.error('GPS unavailable:', err.message)
-        // Pre-fill from boat status if available
-        if (boatStatus?.current_position) {
-          setPosition(boatStatus.current_position)
-          setLatitude(boatStatus.current_lat)
-          setLongitude(boatStatus.current_lon)
-        }
+        console.warn('GPS unavailable:', err.message)
       },
       { enableHighAccuracy: true, timeout: 10000 }
     )
-  }, [boatStatus])
+  }, [])
+
+  // Pre-fill position from boat status if GPS failed
+  useEffect(() => {
+    if (!boatStatus?.current_position) return
+    if (latitude !== null) return // GPS already succeeded
+    setPosition(boatStatus.current_position)
+    setLatitude(boatStatus.current_lat)
+    setLongitude(boatStatus.current_lon)
+  }, [boatStatus, latitude])
 
   // Pre-fill fuel/water from boat status
   useEffect(() => {
