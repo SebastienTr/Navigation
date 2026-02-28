@@ -254,18 +254,28 @@ function VerdictCard({
     return <Skeleton className="h-[120px]" />
   }
 
-  if (!briefing || !briefing.verdict) {
+  // No briefing at all → don't render (MateMessages handles the notification)
+  if (!briefing) return null
+
+  // Briefing exists but no verdict → show compact summary
+  if (!briefing.verdict) {
     return (
       <Card
-        className="flex min-h-[120px] flex-col items-center justify-center gap-2"
+        className="border-l-4 border-gray-300 dark:border-gray-600"
         onClick={() => router.push('/briefings')}
       >
-        <p className="text-lg font-semibold text-gray-400 dark:text-gray-500">
-          Aucun briefing disponible
-        </p>
-        <p className="text-sm text-gray-400 dark:text-gray-600">
-          Le premier briefing sera disponible demain matin
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            Briefing du {new Date(briefing.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+          </p>
+          <ChevronRight size={16} className="text-gray-400" />
+        </div>
+        {(briefing.wind || briefing.sea) && (
+          <div className="mt-1 flex gap-3 text-xs text-gray-500 dark:text-gray-400">
+            {briefing.wind && <span><Wind size={12} className="mr-1 inline" />{briefing.wind}</span>}
+            {briefing.sea && <span><Waves size={12} className="mr-1 inline" />{briefing.sea}</span>}
+          </div>
+        )}
       </Card>
     )
   }
