@@ -185,6 +185,83 @@ function extractStreamingSteps(text: string): RouteStep[][] {
   return allRoutes
 }
 
+// ── Fallback JSON parser (when SSE stream is interrupted) ─────────────
+
+function extractJSONFallback(text: string): RouteOption[] {
+  // Try to parse the accumulated AI text as JSON directly
+  // Same approach as the server-side extractJSON
+  let parsed: { routes?: Array<{
+    name: string
+    summary: string
+    total_distance_nm?: number
+    total_distance_km?: number
+    estimated_days?: number
+    pros?: string[]
+    cons?: string[]
+    warnings?: string[]
+    steps?: Array<{
+      order_num: number
+      name: string
+      from_port: string
+      to_port: string
+      distance_nm?: number | null
+      distance_km?: number | null
+      phase?: string
+      notes?: string
+      from_lat: number
+      from_lon: number
+      to_lat: number
+      to_lon: number
+    }>
+  }> } | null = null
+
+  try {
+    parsed = JSON.parse(text)
+  } catch { /* continue */ }
+
+  if (!parsed) {
+    const jsonBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/)
+    if (jsonBlockMatch?.[1]) {
+      try { parsed = JSON.parse(jsonBlockMatch[1]) } catch { /* continue */ }
+    }
+  }
+
+  if (!parsed) {
+    const firstBrace = text.indexOf('{')
+    const lastBrace = text.lastIndexOf('}')
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      try { parsed = JSON.parse(text.slice(firstBrace, lastBrace + 1)) } catch { /* give up */ }
+    }
+  }
+
+  if (!parsed?.routes || parsed.routes.length === 0) return []
+
+  return parsed.routes.map((route, index) => ({
+    id: `route-${index}`,
+    name: route.name,
+    summary: route.summary,
+    distance: `${route.total_distance_nm ?? 0} NM / ${route.total_distance_km ?? 0} km`,
+    estimated_days: `~${route.estimated_days ?? '?'} jours`,
+    pros: route.pros || [],
+    cons: route.cons || [],
+    warnings: route.warnings || [],
+    steps: (route.steps || []).map((s) => ({
+      order_num: s.order_num,
+      name: s.name,
+      from_port: s.from_port,
+      to_port: s.to_port,
+      distance_nm: s.distance_nm ?? null,
+      distance_km: s.distance_km ?? null,
+      phase: s.phase ?? null,
+      notes: s.notes ?? null,
+      from_lat: s.from_lat ?? null,
+      from_lon: s.from_lon ?? null,
+      to_lat: s.to_lat ?? null,
+      to_lon: s.to_lon ?? null,
+    })),
+  }))
+}
+
 // ── Dynamic import for Leaflet map (no SSR) ────────────────────────────
 
 const RoutePreviewMap = dynamic(() => import('./RoutePreviewMap'), {
@@ -277,6 +354,14 @@ export default function AIRouteWizard({
     streamAccumulatorRef.current = ''
     streamingStepsCountRef.current = 0
 
+    // Request Wake Lock to prevent screen sleep during generation
+    let wakeLock: WakeLockSentinel | null = null
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLock = await navigator.wakeLock.request('screen')
+      }
+    } catch { /* Wake Lock not available or denied — continue without it */ }
+
     try {
       const res = await fetch('/api/ai/route', {
         method: 'POST',
@@ -306,8 +391,20 @@ export default function AIRouteWizard({
         }),
       })
 
+      // Detect auth redirect (307 → /login page returns HTML, not SSE)
+      if (res.redirected || res.headers.get('content-type')?.includes('text/html')) {
+        throw new Error('Session expirée. Veuillez vous reconnecter.')
+      }
+
       if (!res.ok) {
-        throw new Error('Erreur lors de la génération des routes')
+        // Try to extract server error message
+        try {
+          const errBody = await res.json()
+          throw new Error(errBody.error || `Erreur serveur (${res.status})`)
+        } catch (e) {
+          if (e instanceof Error && e.message !== 'Unexpected end of JSON input') throw e
+          throw new Error(`Erreur serveur (${res.status})`)
+        }
       }
 
       const reader = res.body?.getReader()
@@ -315,6 +412,7 @@ export default function AIRouteWizard({
 
       const decoder = new TextDecoder()
       let buffer = ''
+      let receivedDone = false
 
       while (true) {
         const { done, value } = await reader.read()
@@ -352,6 +450,7 @@ export default function AIRouteWizard({
                 setStreamingRoutes(newRoutes)
               }
             } else if (event.type === 'done') {
+              receivedDone = true
               setRouteOptions(event.options || [])
             } else if (event.type === 'error') {
               throw new Error(event.error)
@@ -364,6 +463,22 @@ export default function AIRouteWizard({
           }
         }
       }
+
+      // Fallback: stream ended without receiving the 'done' event
+      // (e.g. connection dropped after screen wake, network hiccup)
+      // Try to parse accumulated text directly
+      if (!receivedDone && streamAccumulatorRef.current.length > 1000) {
+        try {
+          const fallbackParsed = extractJSONFallback(streamAccumulatorRef.current)
+          if (fallbackParsed.length > 0) {
+            setRouteOptions(fallbackParsed)
+            return // Success via fallback
+          }
+        } catch { /* fallback parsing failed */ }
+        throw new Error(
+          'La connexion a été interrompue pendant la génération. Gardez l\'écran allumé et réessayez.'
+        )
+      }
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         // Request was cancelled (e.g. user clicked "Passer" or timeout)
@@ -375,11 +490,11 @@ export default function AIRouteWizard({
         }
         return
       }
-      setRouteError(
-        'Impossible de générer les itinéraires. Vérifiez votre connexion et réessayez.'
-      )
+      const msg = err instanceof Error ? err.message : 'Erreur inconnue'
+      setRouteError(msg)
     } finally {
       clearTimeout(timeout)
+      wakeLock?.release().catch(() => {})
       setLoading(false)
       streamAccumulatorRef.current = ''
       abortControllerRef.current = null
