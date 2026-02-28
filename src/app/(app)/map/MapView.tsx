@@ -5,6 +5,7 @@ import L from 'leaflet'
 import { MapContainer, TileLayer, Polyline, CircleMarker, Marker, Popup, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { Database } from '@/lib/supabase/types'
+import { useTheme } from '@/lib/theme'
 
 type RouteStepRow = Database['public']['Tables']['route_steps']['Row']
 
@@ -148,6 +149,7 @@ export default function MapView({
   boatLon,
   onMapReady,
 }: MapViewProps) {
+  const { resolved: themeMode } = useTheme()
   const mapInstanceRef = useRef<L.Map | null>(null)
 
   const handleMapInstance = useCallback(
@@ -176,15 +178,20 @@ export default function MapView({
       <MapController onMapInstance={handleMapInstance} />
 
       <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        className="base-tiles"
+        key={`base-${themeMode}`}
+        url={themeMode === 'dark'
+          ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+          : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+        }
+        attribution={themeMode === 'dark'
+          ? '&copy; <a href="https://carto.com">CARTO</a>'
+          : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }
       />
       <TileLayer
         url="https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openseamap.org">OpenSeaMap</a>'
-        opacity={0.8}
-        className="seamark-tiles"
+        opacity={themeMode === 'dark' ? 0.9 : 0.8}
       />
 
       {/* Route polylines by status */}

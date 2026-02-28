@@ -5,6 +5,7 @@ import L from 'leaflet'
 import { MapContainer, TileLayer, Polyline, Marker } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { Database } from '@/lib/supabase/types'
+import { useTheme } from '@/lib/theme'
 
 type RouteStepRow = Database['public']['Tables']['route_steps']['Row']
 
@@ -49,6 +50,7 @@ interface MiniMapViewProps {
 }
 
 export default function MiniMapView({ routeSteps, boatLat, boatLon }: MiniMapViewProps) {
+  const { resolved: themeMode } = useTheme()
   const segments = useMemo(() => buildRouteSegments(routeSteps), [routeSteps])
 
   const center = useMemo((): [number, number] => {
@@ -72,8 +74,14 @@ export default function MiniMapView({ routeSteps, boatLat, boatLon }: MiniMapVie
       attributionControl={false}
       className="h-full w-full rounded-lg"
     >
-      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" className="base-tiles" />
-      <TileLayer url="https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png" opacity={0.8} className="seamark-tiles" />
+      <TileLayer
+        key={`base-${themeMode}`}
+        url={themeMode === 'dark'
+          ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+          : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+        }
+      />
+      <TileLayer url="https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png" opacity={themeMode === 'dark' ? 0.9 : 0.8} />
 
       {segments.map((seg, i) => (
         <Polyline
