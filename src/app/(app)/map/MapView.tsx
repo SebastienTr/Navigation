@@ -178,11 +178,13 @@ export default function MapView({
       <TileLayer
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        className="base-tiles"
       />
       <TileLayer
         url="https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openseamap.org">OpenSeaMap</a>'
         opacity={0.8}
+        className="seamark-tiles"
       />
 
       {/* Route polylines by status */}

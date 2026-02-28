@@ -72,8 +72,8 @@ export default function MiniMapView({ routeSteps, boatLat, boatLon }: MiniMapVie
       attributionControl={false}
       className="h-full w-full rounded-lg"
     >
-      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-      <TileLayer url="https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png" opacity={0.8} />
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" className="base-tiles" />
+      <TileLayer url="https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png" opacity={0.8} className="seamark-tiles" />
 
       {segments.map((seg, i) => (
         <Polyline

@@ -39,14 +39,11 @@
 }
 
 /* ── Dark mode map tiles ─────────────────────────────────────────── */
-.dark .leaflet-tile-pane {
+.dark .base-tiles {
   filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
 }
-.dark .leaflet-marker-pane,
-.dark .leaflet-shadow-pane,
-.dark .leaflet-overlay-pane svg,
-.dark .leaflet-popup-pane {
-  filter: none;
+.dark .seamark-tiles {
+  filter: brightness(0.85) saturate(1.4);
 }
 
 /* ── Base styles ─────────────────────────────────────────────────── */
