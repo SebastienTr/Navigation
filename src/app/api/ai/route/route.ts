@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
-import { MODEL_CHAT } from '@/lib/ai/proxy'
+import { MODEL_SONNET } from '@/lib/ai/proxy'
 import { buildRouteSystemPrompt } from '@/lib/ai/prompts'
 import { getUserBoats, getNavProfiles } from '@/lib/supabase/queries'
 import { log } from '@/lib/logger'
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    log.info('route', 'Route request', { departure, arrival, model: MODEL_CHAT, custom: !!description, userId: user.id })
+    log.info('route', 'Route request', { departure, arrival, model: MODEL_SONNET, custom: !!description, userId: user.id })
 
     // Get boat/profile from body (onboarding) or DB (settings)
     let boatInfo: {
@@ -221,14 +221,14 @@ export async function POST(request: NextRequest) {
     // Stream via SSE
     const encoder = new TextEncoder()
     const client = getClient()
-    const streamTimer = log.timed('ai', 'Claude stream', { model: MODEL_CHAT, departure, arrival })
+    const streamTimer = log.timed('ai', 'Claude stream', { model: MODEL_SONNET, departure, arrival })
 
     const sseStream = new ReadableStream<Uint8Array>({
       async start(controller) {
         let accumulated = ''
         try {
           const stream = client.messages.stream({
-            model: MODEL_CHAT,
+            model: MODEL_SONNET,
             max_tokens: 16384,
             system: systemPrompt,
             messages: [{ role: 'user', content: userMessage }],
