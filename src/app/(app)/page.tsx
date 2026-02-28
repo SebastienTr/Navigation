@@ -769,9 +769,10 @@ export default function DashboardPage() {
   const [latestLog, setLatestLog] = useState<LogRow | null>(null)
   const [pendingReminders, setPendingReminders] = useState<ReminderRow[]>([])
 
-  // Fetch data when voyage is available
+  // Fetch data when voyage changes (use ID to avoid re-runs on object ref changes)
+  const voyageId = voyage?.id ?? null
   useEffect(() => {
-    if (!voyage) {
+    if (!voyageId) {
       setBriefingLoading(false)
       setRouteLoading(false)
       return
@@ -784,7 +785,7 @@ export default function DashboardPage() {
       const { data, error } = await supabase
         .from('briefings')
         .select('*')
-        .eq('voyage_id', voyage.id)
+        .eq('voyage_id', voyageId)
         .order('created_at', { ascending: false })
         .limit(1)
         .returns<BriefingRow[]>()
@@ -803,7 +804,7 @@ export default function DashboardPage() {
       const { data, error } = await supabase
         .from('route_steps')
         .select('*')
-        .eq('voyage_id', voyage.id)
+        .eq('voyage_id', voyageId)
         .order('order_num', { ascending: true })
         .returns<RouteStepRow[]>()
 
@@ -820,7 +821,7 @@ export default function DashboardPage() {
       const { data } = await supabase
         .from('logs')
         .select('*')
-        .eq('voyage_id', voyage.id)
+        .eq('voyage_id', voyageId)
         .order('created_at', { ascending: false })
         .limit(1)
         .returns<LogRow[]>()
@@ -834,7 +835,7 @@ export default function DashboardPage() {
       const { data } = await supabase
         .from('reminders')
         .select('*')
-        .eq('voyage_id', voyage.id)
+        .eq('voyage_id', voyageId)
         .eq('status', 'pending')
         .lte('remind_at', new Date().toISOString())
         .returns<ReminderRow[]>()
@@ -846,7 +847,7 @@ export default function DashboardPage() {
     fetchSteps()
     fetchLatestLog()
     fetchReminders()
-  }, [voyage])
+  }, [voyageId])
 
   if (loading) {
     return (
