@@ -29,7 +29,7 @@ export function BottomNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200/50 bg-white/80 backdrop-blur-lg dark:border-gray-800/50 dark:bg-gray-950/80">
+    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200/40 bg-white/80 backdrop-blur-xl dark:border-gray-800/40 dark:bg-gray-950/85">
       <div className="mx-auto flex max-w-lg items-stretch justify-around pb-[env(safe-area-inset-bottom)]">
         {tabs.map((tab) => {
           const isActive =
@@ -46,12 +46,12 @@ export function BottomNav() {
               className={`flex min-h-[44px] min-w-[44px] flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] font-medium transition-colors ${
                 isActive
                   ? 'text-blue-600 dark:text-blue-400'
-                  : 'text-gray-500 dark:text-gray-400'
+                  : 'text-gray-400 dark:text-gray-500'
               }`}
             >
               <Icon
-                size={22}
-                strokeWidth={isActive ? 2.5 : 2}
+                size={21}
+                strokeWidth={isActive ? 2.5 : 1.8}
                 aria-hidden="true"
               />
               <span className="leading-tight">{tab.label}</span>

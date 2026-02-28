@@ -18,6 +18,9 @@ import {
   MapPin,
   Camera,
   X,
+  Pencil,
+  Trash2,
+  ChevronLeft,
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth/context'
 import { useActiveVoyage } from '@/lib/auth/hooks'
@@ -33,6 +36,8 @@ type LogInsert = Database['public']['Tables']['logs']['Insert']
 type EntryType = NonNullable<LogRow['entry_type']>
 type FuelLevel = NonNullable<LogRow['fuel_tank']>
 type WaterLevel = NonNullable<LogRow['water']>
+
+type FormMode = 'closed' | 'new' | 'edit'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -75,6 +80,22 @@ function formatDateTime(iso: string): string {
   })
 }
 
+function formatDateRelative(iso: string): string {
+  const d = new Date(iso)
+  const now = new Date()
+  const diffMs = now.getTime() - d.getTime()
+  const diffMins = Math.floor(diffMs / (1000 * 60))
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if (diffMins < 1) return "A l'instant"
+  if (diffMins < 60) return `Il y a ${diffMins} min`
+  if (diffHours < 24) return `Il y a ${diffHours}h`
+  if (diffDays === 1) return 'Hier'
+  if (diffDays < 7) return `Il y a ${diffDays}j`
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+}
+
 function entryTypeLabel(type: EntryType | null): string {
   return ENTRY_TYPES.find((t) => t.value === type)?.label ?? 'Journal'
 }
@@ -96,15 +117,12 @@ function entryTypeBadgeColor(type: EntryType | null): string {
   }
 }
 
-function fuelLevelIcon(level: FuelLevel | null): string {
-  switch (level) {
-    case 'full': return '████'
-    case '3/4': return '███░'
-    case 'half': return '██░░'
-    case '1/4': return '█░░░'
-    case 'reserve': return '░░░░'
-    default: return '—'
-  }
+function entryTypeIcon(type: EntryType | null) {
+  return ENTRY_TYPES.find((t) => t.value === type)?.icon ?? BookOpen
+}
+
+function fuelLabel(level: FuelLevel | null): string {
+  return FUEL_LEVELS.find((f) => f.value === level)?.label ?? '—'
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -114,6 +132,11 @@ export default function LogPage() {
   const { voyage, boatStatus, loading: voyageLoading } = useActiveVoyage()
   const isOnline = useOnlineStatus()
   const [pendingCount, setPendingCount] = useState(0)
+
+  // Form mode
+  const [formMode, setFormMode] = useState<FormMode>('closed')
+  const [editingLog, setEditingLog] = useState<LogRow | null>(null)
+  const formRef = useRef<HTMLDivElement>(null)
 
   // Form state
   const [entryType, setEntryType] = useState<EntryType>('navigation')
@@ -129,13 +152,112 @@ export default function LogPage() {
   const [photos, setPhotos] = useState<{ url: string; file: File }[]>([])
   const photoInputRef = useRef<HTMLInputElement>(null)
   const [saving, setSaving] = useState(false)
-  const [toast, setToast] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   // History
   const [logs, setLogs] = useState<LogRow[]>([])
   const [logsLoading, setLogsLoading] = useState(true)
 
-  // Check pending count + sync when online
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  const resetForm = useCallback(() => {
+    setEntryType('navigation')
+    setPosition('')
+    setLatitude(null)
+    setLongitude(null)
+    setFuelTank(boatStatus?.fuel_tank as FuelLevel ?? null)
+    setJerricans(boatStatus?.jerricans ?? 0)
+    setWater(boatStatus?.water as WaterLevel ?? null)
+    setProblemTags([])
+    setProblemText('')
+    setNotes('')
+    photos.forEach((p) => URL.revokeObjectURL(p.url))
+    setPhotos([])
+  }, [boatStatus, photos])
+
+  const detectGPS = () => {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude
+        const lon = pos.coords.longitude
+        setLatitude(lat)
+        setLongitude(lon)
+        setPosition(`${lat.toFixed(4)}°N, ${lon.toFixed(4)}°${lon >= 0 ? 'E' : 'W'}`)
+      },
+      (err) => {
+        console.warn('GPS unavailable:', err.message)
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    )
+  }
+
+  // ── Open / Close form ──────────────────────────────────────────────────
+
+  const openNewForm = () => {
+    resetForm()
+    setEditingLog(null)
+    setFormMode('new')
+
+    // Pre-fill from boat status
+    if (boatStatus) {
+      if (boatStatus.fuel_tank) setFuelTank(boatStatus.fuel_tank as FuelLevel)
+      if (boatStatus.water) setWater(boatStatus.water as WaterLevel)
+      if (boatStatus.jerricans != null) setJerricans(boatStatus.jerricans)
+      if (boatStatus.current_position) {
+        setPosition(boatStatus.current_position)
+        setLatitude(boatStatus.current_lat)
+        setLongitude(boatStatus.current_lon)
+      }
+    }
+
+    // Try GPS
+    detectGPS()
+
+    // Scroll to top
+    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50)
+  }
+
+  const openEditForm = (log: LogRow) => {
+    // Clean up existing photo previews
+    photos.forEach((p) => URL.revokeObjectURL(p.url))
+    setPhotos([])
+
+    setEditingLog(log)
+    setFormMode('edit')
+    setEntryType(log.entry_type ?? 'navigation')
+    setPosition(log.position ?? '')
+    setLatitude(log.latitude)
+    setLongitude(log.longitude)
+    setFuelTank(log.fuel_tank as FuelLevel ?? null)
+    setJerricans(log.jerricans ?? 0)
+    setWater(log.water as WaterLevel ?? null)
+    setProblemTags(log.problem_tags ?? [])
+    // Extract problem text from the problems field (minus the tags)
+    const tags = log.problem_tags ?? []
+    const problemParts = (log.problems ?? '').split(', ').filter((p) => !tags.includes(p))
+    setProblemText(problemParts.join(', '))
+    setNotes(log.notes ?? '')
+
+    // Scroll to top
+    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50)
+  }
+
+  const closeForm = () => {
+    photos.forEach((p) => URL.revokeObjectURL(p.url))
+    setPhotos([])
+    setEditingLog(null)
+    setFormMode('closed')
+  }
+
+  // ── Sync pending ──────────────────────────────────────────────────────
+
   const syncPendingLogs = useCallback(async () => {
     if (!isOnline || !voyage) return
     const pending = await getPendingLogs()
@@ -166,8 +288,7 @@ export default function LogPage() {
     }
 
     if (synced > 0) {
-      setToast(`${synced} entrée(s) synchronisée(s)`)
-      setTimeout(() => setToast(null), 3000)
+      showToast(`${synced} entrée(s) synchronisée(s)`)
       fetchLogs()
     }
 
@@ -183,53 +304,8 @@ export default function LogPage() {
     getPendingCount().then(setPendingCount).catch(() => {})
   }, [])
 
-  // Auto-detect GPS position on mount (once only)
-  const gpsAttempted = useRef(false)
-  useEffect(() => {
-    if (gpsAttempted.current) return
-    gpsAttempted.current = true
+  // ── Fetch logs ──────────────────────────────────────────────────────
 
-    if (!navigator.geolocation) return
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude
-        const lon = pos.coords.longitude
-        setLatitude(lat)
-        setLongitude(lon)
-        setPosition(`${lat.toFixed(4)}°N, ${lon.toFixed(4)}°${lon >= 0 ? 'E' : 'W'}`)
-      },
-      (err) => {
-        console.warn('GPS unavailable:', err.message)
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    )
-  }, [])
-
-  // Pre-fill position from boat status if GPS failed
-  useEffect(() => {
-    if (!boatStatus?.current_position) return
-    if (latitude !== null) return // GPS already succeeded
-    setPosition(boatStatus.current_position)
-    setLatitude(boatStatus.current_lat)
-    setLongitude(boatStatus.current_lon)
-  }, [boatStatus, latitude])
-
-  // Pre-fill fuel/water from boat status
-  useEffect(() => {
-    if (!boatStatus) return
-    if (boatStatus.fuel_tank) {
-      setFuelTank(boatStatus.fuel_tank as FuelLevel)
-    }
-    if (boatStatus.water) {
-      setWater(boatStatus.water as WaterLevel)
-    }
-    if (boatStatus.jerricans != null) {
-      setJerricans(boatStatus.jerricans)
-    }
-  }, [boatStatus])
-
-  // Fetch log history
   const fetchLogs = useCallback(async () => {
     if (!voyage) {
       setLogs([])
@@ -259,7 +335,8 @@ export default function LogPage() {
     fetchLogs()
   }, [fetchLogs])
 
-  // Save log entry
+  // ── Save (create or update) ──────────────────────────────────────────
+
   const handleSave = async () => {
     if (!user || !voyage) return
 
@@ -270,109 +347,154 @@ export default function LogPage() {
       ...(problemText.trim() ? [problemText.trim()] : []),
     ].join(', ') || null
 
-    const logEntry: LogInsert = {
-      user_id: user.id,
-      voyage_id: voyage.id,
-      position: position || 'Position inconnue',
-      latitude,
-      longitude,
-      entry_type: entryType,
-      fuel_tank: fuelTank,
-      jerricans,
-      water,
-      problems: combinedProblems,
-      problem_tags: problemTags.length > 0 ? problemTags : null,
-      notes: notes.trim() || null,
-    }
-
-    const statusUpdate: Database['public']['Tables']['boat_status']['Update'] = {
-      updated_at: new Date().toISOString(),
-    }
-
-    if (latitude != null && longitude != null) {
-      statusUpdate.current_lat = latitude
-      statusUpdate.current_lon = longitude
-      statusUpdate.current_position = position
-    }
-    if (fuelTank) {
-      statusUpdate.fuel_tank = fuelTank
-    }
-    if (water) {
-      statusUpdate.water = water
-    }
-    statusUpdate.jerricans = jerricans
-    if (problemTags.length > 0) {
-      statusUpdate.active_problems = problemTags
-    }
-
-    if (!isOnline) {
-      // Queue for later sync
-      await queueLogEntry({
-        id: `log-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        timestamp: Date.now(),
-        data: logEntry as unknown as Record<string, unknown>,
-        statusUpdate: statusUpdate as unknown as Record<string, unknown>,
-        voyageId: voyage.id,
-      })
-      const count = await getPendingCount()
-      setPendingCount(count)
-      setToast('Sauvegardé hors-ligne — sera synchronisé au retour du réseau')
-    } else {
+    if (formMode === 'edit' && editingLog) {
+      // ── UPDATE existing log ──
       const supabase = createClient()
 
-      // Upload photos if any
+      // Upload new photos if any
+      let newPhotoUrls: string[] = []
       if (photos.length > 0) {
         const photoFiles = photos.map((p) => p.file)
-        const urls = await uploadLogPhotos(supabase, user.id, voyage.id, photoFiles)
-        if (urls.length > 0) {
-          logEntry.photo_urls = urls
-        }
+        newPhotoUrls = await uploadLogPhotos(supabase, user.id, voyage.id, photoFiles)
       }
+      const allPhotoUrls = [
+        ...(editingLog.photo_urls ?? []),
+        ...newPhotoUrls,
+      ]
 
-      const { error: logError } = await supabase
+      const { error } = await supabase
         .from('logs')
-        .insert(logEntry)
+        .update({
+          position: position || 'Position inconnue',
+          latitude,
+          longitude,
+          entry_type: entryType,
+          fuel_tank: fuelTank,
+          jerricans,
+          water,
+          problems: combinedProblems,
+          problem_tags: problemTags.length > 0 ? problemTags : null,
+          notes: notes.trim() || null,
+          photo_urls: allPhotoUrls.length > 0 ? allPhotoUrls : null,
+        })
+        .eq('id', editingLog.id)
 
-      if (logError) {
-        console.error('Failed to save log:', logError.message)
-        setToast('Erreur lors de l\'enregistrement')
+      if (error) {
+        console.error('Failed to update log:', error.message)
+        showToast("Erreur lors de la mise à jour", 'error')
         setSaving(false)
         return
       }
 
-      const { error: statusError } = await supabase
-        .from('boat_status')
-        .update(statusUpdate)
-        .eq('voyage_id', voyage.id)
-
-      if (statusError) {
-        console.error('Failed to update boat status:', statusError.message)
+      showToast('Entrée mise à jour')
+      closeForm()
+      fetchLogs()
+    } else {
+      // ── CREATE new log ──
+      const logEntry: LogInsert = {
+        user_id: user.id,
+        voyage_id: voyage.id,
+        position: position || 'Position inconnue',
+        latitude,
+        longitude,
+        entry_type: entryType,
+        fuel_tank: fuelTank,
+        jerricans,
+        water,
+        problems: combinedProblems,
+        problem_tags: problemTags.length > 0 ? problemTags : null,
+        notes: notes.trim() || null,
       }
 
-      setToast('Entrée enregistrée')
+      const statusUpdate: Database['public']['Tables']['boat_status']['Update'] = {
+        updated_at: new Date().toISOString(),
+      }
 
-      // Refresh logs
-      fetchLogs()
+      if (latitude != null && longitude != null) {
+        statusUpdate.current_lat = latitude
+        statusUpdate.current_lon = longitude
+        statusUpdate.current_position = position
+      }
+      if (fuelTank) statusUpdate.fuel_tank = fuelTank
+      if (water) statusUpdate.water = water
+      statusUpdate.jerricans = jerricans
+      if (problemTags.length > 0) statusUpdate.active_problems = problemTags
+
+      if (!isOnline) {
+        await queueLogEntry({
+          id: `log-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          timestamp: Date.now(),
+          data: logEntry as unknown as Record<string, unknown>,
+          statusUpdate: statusUpdate as unknown as Record<string, unknown>,
+          voyageId: voyage.id,
+        })
+        const count = await getPendingCount()
+        setPendingCount(count)
+        showToast('Sauvegardé hors-ligne')
+      } else {
+        const supabase = createClient()
+
+        if (photos.length > 0) {
+          const photoFiles = photos.map((p) => p.file)
+          const urls = await uploadLogPhotos(supabase, user.id, voyage.id, photoFiles)
+          if (urls.length > 0) logEntry.photo_urls = urls
+        }
+
+        const { error: logError } = await supabase.from('logs').insert(logEntry)
+
+        if (logError) {
+          console.error('Failed to save log:', logError.message)
+          showToast("Erreur lors de l'enregistrement", 'error')
+          setSaving(false)
+          return
+        }
+
+        await supabase
+          .from('boat_status')
+          .update(statusUpdate)
+          .eq('voyage_id', voyage.id)
+
+        showToast('Entrée enregistrée')
+        fetchLogs()
+      }
+
+      closeForm()
     }
 
-    // Reset form
-    setNotes('')
-    setProblemText('')
-    setProblemTags([])
-    photos.forEach((p) => URL.revokeObjectURL(p.url))
-    setPhotos([])
     setSaving(false)
-
-    // Clear toast after 3s
-    setTimeout(() => setToast(null), 3000)
   }
 
-  // Toggle problem tag
+  // ── Delete ──────────────────────────────────────────────────────────
+
+  const handleDelete = async () => {
+    if (!editingLog) return
+
+    setDeleting(true)
+    const supabase = createClient()
+    const { error } = await supabase.from('logs').delete().eq('id', editingLog.id)
+
+    if (error) {
+      console.error('Failed to delete log:', error.message)
+      showToast('Erreur lors de la suppression', 'error')
+      setDeleting(false)
+      return
+    }
+
+    showToast('Entrée supprimée')
+    closeForm()
+    fetchLogs()
+    setDeleting(false)
+  }
+
+  // ── Toggle problem tag ──────────────────────────────────────────────
+
   const toggleTag = (tag: string) => {
     setProblemTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
     )
   }
+
+  // ── Loading / empty states ──────────────────────────────────────────
 
   if (voyageLoading) {
     return (
@@ -393,45 +515,49 @@ export default function LogPage() {
     )
   }
 
-  const nowFormatted = new Date().toLocaleDateString('fr-FR', {
-    weekday: 'short',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  // ── Form visible ──────────────────────────────────────────────────
 
-  return (
-    <div className="mx-auto max-w-lg px-4 py-4">
-      {/* Toast */}
-      {toast && (
-        <div className="fixed left-4 right-4 top-4 z-50 mx-auto max-w-sm animate-pulse rounded-xl bg-green-600 px-4 py-3 text-center text-sm font-medium text-white shadow-lg">
-          <div className="flex items-center justify-center gap-2">
-            <CheckCircle className="h-4 w-4" />
-            {toast}
+  if (formMode !== 'closed') {
+    const nowFormatted = new Date().toLocaleDateString('fr-FR', {
+      weekday: 'short',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+
+    return (
+      <div ref={formRef} className="mx-auto max-w-lg px-4 py-4 pb-24">
+        {/* Toast */}
+        {toast && (
+          <div className={`fixed left-4 right-4 top-4 z-50 mx-auto max-w-sm rounded-xl px-4 py-3 text-center text-sm font-medium text-white shadow-lg ${
+            toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'
+          }`}>
+            <div className="flex items-center justify-center gap-2">
+              <CheckCircle className="h-4 w-4" />
+              {toast.message}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ── Log Form ────────────────────────────────────────────────────── */}
-      <section className="mb-8">
-        <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-            Nouvelle entrée
+        {/* Header */}
+        <div className="mb-5 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={closeForm}
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 active:bg-gray-100 dark:text-gray-400 dark:active:bg-gray-800"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <h1 className="flex-1 text-lg font-bold text-gray-900 dark:text-white">
+            {formMode === 'edit' ? 'Modifier l\'entrée' : 'Nouvelle entrée'}
           </h1>
-          <div className="flex items-center gap-2">
-            {pendingCount > 0 && (
-              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                {pendingCount} en attente
-              </span>
-            )}
-            {!isOnline && (
-              <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/40 dark:text-red-300">
-                Hors-ligne
-              </span>
-            )}
-          </div>
+          {!isOnline && (
+            <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/40 dark:text-red-300">
+              Hors-ligne
+            </span>
+          )}
         </div>
 
         {/* Date/Time */}
@@ -441,16 +567,15 @@ export default function LogPage() {
           </label>
           <div className="flex h-11 items-center gap-2 rounded-lg bg-gray-100 px-3 text-sm text-gray-700 dark:bg-gray-800 dark:text-gray-300">
             <Clock className="h-4 w-4 shrink-0" />
-            {nowFormatted}
+            {formMode === 'edit' && editingLog
+              ? formatDateTime(editingLog.created_at)
+              : nowFormatted}
           </div>
         </div>
 
         {/* Position */}
         <div className="mb-4">
-          <label
-            htmlFor="position"
-            className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400"
-          >
+          <label htmlFor="position" className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
             Position
           </label>
           <div className="relative">
@@ -490,27 +615,51 @@ export default function LogPage() {
           </div>
         </div>
 
-        {/* Fuel tank */}
-        <div className="mb-4">
-          <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-            <Fuel className="mb-0.5 mr-1 inline h-3.5 w-3.5" />
-            Carburant réservoir
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {FUEL_LEVELS.map(({ value, label }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setFuelTank(value)}
-                className={`flex min-h-[44px] min-w-[56px] items-center justify-center rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                  fuelTank === value
-                    ? 'border-amber-500 bg-amber-50 text-amber-700 dark:border-amber-400 dark:bg-amber-900/30 dark:text-amber-300'
-                    : 'border-gray-200 bg-white text-gray-600 active:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:active:bg-gray-700'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+        {/* Fuel + Water side by side */}
+        <div className="mb-4 grid grid-cols-2 gap-3">
+          <div>
+            <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              <Fuel className="mb-0.5 mr-1 inline h-3.5 w-3.5" />
+              Carburant
+            </label>
+            <div className="flex flex-col gap-1.5">
+              {FUEL_LEVELS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setFuelTank(value)}
+                  className={`flex min-h-[40px] items-center justify-center rounded-lg border px-2 py-1.5 text-sm font-medium transition-colors ${
+                    fuelTank === value
+                      ? 'border-amber-500 bg-amber-50 text-amber-700 dark:border-amber-400 dark:bg-amber-900/30 dark:text-amber-300'
+                      : 'border-gray-200 bg-white text-gray-600 active:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              <Droplets className="mb-0.5 mr-1 inline h-3.5 w-3.5" />
+              Eau douce
+            </label>
+            <div className="flex flex-col gap-1.5">
+              {WATER_LEVELS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setWater(value)}
+                  className={`flex min-h-[40px] items-center justify-center rounded-lg border px-2 py-1.5 text-sm font-medium transition-colors ${
+                    water === value
+                      ? 'border-sky-500 bg-sky-50 text-sky-700 dark:border-sky-400 dark:bg-sky-900/30 dark:text-sky-300'
+                      : 'border-gray-200 bg-white text-gray-600 active:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -543,30 +692,6 @@ export default function LogPage() {
           </div>
         </div>
 
-        {/* Water */}
-        <div className="mb-4">
-          <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-            <Droplets className="mb-0.5 mr-1 inline h-3.5 w-3.5" />
-            Eau douce
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {WATER_LEVELS.map(({ value, label }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setWater(value)}
-                className={`flex min-h-[44px] min-w-[56px] items-center justify-center rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                  water === value
-                    ? 'border-sky-500 bg-sky-50 text-sky-700 dark:border-sky-400 dark:bg-sky-900/30 dark:text-sky-300'
-                    : 'border-gray-200 bg-white text-gray-600 active:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:active:bg-gray-700'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Problems */}
         <div className="mb-4">
           <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
@@ -578,10 +703,10 @@ export default function LogPage() {
                 key={tag}
                 type="button"
                 onClick={() => toggleTag(tag)}
-                className={`min-h-[44px] rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+                className={`min-h-[40px] rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
                   problemTags.includes(tag)
                     ? 'border-red-400 bg-red-50 text-red-700 dark:border-red-500 dark:bg-red-900/30 dark:text-red-300'
-                    : 'border-gray-200 bg-white text-gray-600 active:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:active:bg-gray-700'
+                    : 'border-gray-200 bg-white text-gray-600 active:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300'
                 }`}
               >
                 {tag}
@@ -599,10 +724,7 @@ export default function LogPage() {
 
         {/* Notes */}
         <div className="mb-4">
-          <label
-            htmlFor="notes"
-            className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400"
-          >
+          <label htmlFor="notes" className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
             Notes
           </label>
           <textarea
@@ -640,13 +762,16 @@ export default function LogPage() {
             }}
           />
           <div className="flex flex-wrap gap-2">
+            {/* Existing photos (edit mode) */}
+            {formMode === 'edit' && editingLog?.photo_urls?.map((url, i) => (
+              <div key={`existing-${i}`} className="relative h-20 w-20 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                <img src={url} alt={`Photo ${i + 1}`} className="h-full w-full object-cover" />
+              </div>
+            ))}
+            {/* New photos */}
             {photos.map((photo, i) => (
-              <div key={i} className="group relative h-20 w-20 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-                <img
-                  src={photo.url}
-                  alt={`Photo ${i + 1}`}
-                  className="h-full w-full object-cover"
-                />
+              <div key={i} className="relative h-20 w-20 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                <img src={photo.url} alt={`Nouvelle photo ${i + 1}`} className="h-full w-full object-cover" />
                 <button
                   type="button"
                   onClick={() => {
@@ -668,131 +793,226 @@ export default function LogPage() {
               <span className="text-[10px]">Ajouter</span>
             </button>
           </div>
-          {photos.length > 0 && (
-            <p className="mt-1 text-[10px] text-gray-400 dark:text-gray-500">
-              {photos.length} photo(s){!isOnline ? ' — sera uploadé au retour du réseau' : ''}
-            </p>
-          )}
         </div>
 
-        {/* Save button */}
+        {/* Action buttons */}
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving || deleting}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 text-sm font-medium text-white transition-colors active:bg-blue-700 disabled:bg-blue-400 dark:bg-blue-500 dark:active:bg-blue-600 dark:disabled:bg-blue-800"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                {formMode === 'edit' ? 'Mise à jour...' : 'Enregistrement...'}
+              </>
+            ) : (
+              formMode === 'edit' ? 'Mettre à jour' : 'Enregistrer l\'entrée'
+            )}
+          </button>
+
+          {formMode === 'edit' && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={saving || deleting}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-white text-sm font-medium text-red-600 transition-colors active:bg-red-50 disabled:opacity-50 dark:border-red-900/50 dark:bg-gray-900 dark:text-red-400 dark:active:bg-red-900/20"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Suppression...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Supprimer cette entrée
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // ── History view (default) ──────────────────────────────────────────
+
+  return (
+    <div className="mx-auto max-w-lg px-4 py-4 pb-24">
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed left-4 right-4 top-4 z-50 mx-auto max-w-sm rounded-xl px-4 py-3 text-center text-sm font-medium text-white shadow-lg ${
+          toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'
+        }`}>
+          <div className="flex items-center justify-center gap-2">
+            <CheckCircle className="h-4 w-4" />
+            {toast.message}
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900 dark:text-white">
+            Journal de bord
+          </h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {logs.length} entrée{logs.length > 1 ? 's' : ''}
+            {pendingCount > 0 && (
+              <span className="ml-1 text-amber-600 dark:text-amber-400">
+                · {pendingCount} en attente
+              </span>
+            )}
+          </p>
+        </div>
+        {!isOnline && (
+          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/40 dark:text-red-300">
+            Hors-ligne
+          </span>
+        )}
+      </div>
+
+      {/* Log history */}
+      {logsLoading ? (
+        <div className="py-8">
+          <LoadingSpinner text="Chargement..." />
+        </div>
+      ) : logs.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-16 text-center">
+          <BookOpen className="h-12 w-12 text-gray-300 dark:text-gray-600" />
+          <p className="text-base font-medium text-gray-900 dark:text-gray-100">
+            Aucune entrée
+          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Enregistrez votre premier point dans le journal.
+          </p>
+          <button
+            type="button"
+            onClick={openNewForm}
+            className="mt-2 flex h-11 items-center gap-2 rounded-lg bg-blue-600 px-5 text-sm font-medium text-white active:bg-blue-700 dark:bg-blue-500 dark:active:bg-blue-600"
+          >
+            <Plus className="h-4 w-4" />
+            Nouvelle entrée
+          </button>
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {logs.map((log) => {
+            const TypeIcon = entryTypeIcon(log.entry_type)
+            return (
+              <li key={log.id}>
+                <button
+                  type="button"
+                  onClick={() => openEditForm(log)}
+                  className="w-full rounded-lg border border-gray-200/80 bg-white p-3 text-left transition-colors active:bg-gray-50 dark:border-gray-800/60 dark:bg-gray-900 dark:active:bg-gray-800"
+                >
+                  {/* Row 1: Icon + type + date + edit hint */}
+                  <div className="mb-1.5 flex items-center gap-2">
+                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${entryTypeBadgeColor(log.entry_type)}`}>
+                      <TypeIcon className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {entryTypeLabel(log.entry_type)}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-gray-400 dark:text-gray-500">
+                            {formatDateRelative(log.created_at)}
+                          </span>
+                          <Pencil className="h-3 w-3 text-gray-300 dark:text-gray-600" />
+                        </div>
+                      </div>
+                      {log.position && (
+                        <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                          {log.position}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Row 2: Levels compact */}
+                  <div className="mb-1 flex flex-wrap gap-2 text-[11px] text-gray-500 dark:text-gray-400">
+                    {log.fuel_tank && (
+                      <span className="flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 dark:bg-gray-800">
+                        <Fuel className="h-3 w-3" />
+                        {fuelLabel(log.fuel_tank)}
+                      </span>
+                    )}
+                    {log.jerricans > 0 && (
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 dark:bg-gray-800">
+                        Jerr. {log.jerricans}
+                      </span>
+                    )}
+                    {log.water && (
+                      <span className="flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 dark:bg-gray-800">
+                        <Droplets className="h-3 w-3" />
+                        {WATER_LEVELS.find((w) => w.value === log.water)?.label ?? log.water}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Problem tags */}
+                  {log.problem_tags && log.problem_tags.length > 0 && (
+                    <div className="mb-1 flex flex-wrap gap-1">
+                      {log.problem_tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-900/40 dark:text-red-300"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Photos thumbnails */}
+                  {log.photo_urls && log.photo_urls.length > 0 && (
+                    <div className="mb-1 flex gap-1">
+                      {log.photo_urls.slice(0, 4).map((url, i) => (
+                        <img
+                          key={i}
+                          src={url}
+                          alt={`Photo ${i + 1}`}
+                          className="h-10 w-10 shrink-0 rounded object-cover"
+                        />
+                      ))}
+                      {log.photo_urls.length > 4 && (
+                        <span className="flex h-10 w-10 items-center justify-center rounded bg-gray-100 text-xs text-gray-500 dark:bg-gray-800">
+                          +{log.photo_urls.length - 4}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Notes */}
+                  {log.notes && (
+                    <p className="line-clamp-2 text-xs text-gray-600 dark:text-gray-400">
+                      {log.notes}
+                    </p>
+                  )}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+
+      {/* FAB: New entry */}
+      {logs.length > 0 && (
         <button
           type="button"
-          onClick={handleSave}
-          disabled={saving}
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-green-600 text-base font-semibold text-white transition-colors hover:bg-green-700 active:bg-green-800 disabled:bg-green-400 dark:disabled:bg-green-800"
+          onClick={openNewForm}
+          className="fixed bottom-24 right-4 z-40 flex h-13 w-13 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/25 transition-transform active:scale-95 dark:bg-blue-500"
+          aria-label="Nouvelle entrée"
         >
-          {saving ? (
-            <>
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Enregistrement...
-            </>
-          ) : (
-            'Enregistrer'
-          )}
+          <Plus className="h-6 w-6" />
         </button>
-      </section>
-
-      {/* ── Log History ─────────────────────────────────────────────────── */}
-      <section>
-        <h2 className="mb-3 text-lg font-bold text-gray-900 dark:text-white">
-          Historique
-        </h2>
-
-        {logsLoading ? (
-          <div className="py-8">
-            <LoadingSpinner text="Chargement..." />
-          </div>
-        ) : logs.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-12 text-gray-400 dark:text-gray-500">
-            <BookOpen className="h-10 w-10" />
-            <p className="text-sm">Aucune entrée dans le journal</p>
-          </div>
-        ) : (
-          <ul className="space-y-3">
-            {logs.map((log) => (
-              <li
-                key={log.id}
-                className="rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900"
-              >
-                {/* Header: date + type badge */}
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {formatDateTime(log.created_at)}
-                  </span>
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${entryTypeBadgeColor(log.entry_type)}`}
-                  >
-                    {entryTypeLabel(log.entry_type)}
-                  </span>
-                </div>
-
-                {/* Position */}
-                {log.position && (
-                  <p className="mb-1.5 flex items-center gap-1 text-sm text-gray-700 dark:text-gray-300">
-                    <MapPin className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                    {log.position}
-                  </p>
-                )}
-
-                {/* Fuel + Water indicators */}
-                <div className="mb-1.5 flex flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400">
-                  {log.fuel_tank && (
-                    <span className="flex items-center gap-1">
-                      <Fuel className="h-3 w-3" />
-                      {fuelLevelIcon(log.fuel_tank)} {log.fuel_tank}
-                    </span>
-                  )}
-                  {log.jerricans > 0 && (
-                    <span>Jerr. {log.jerricans}</span>
-                  )}
-                  {log.water && (
-                    <span className="flex items-center gap-1">
-                      <Droplets className="h-3 w-3" />
-                      {log.water}
-                    </span>
-                  )}
-                </div>
-
-                {/* Problem tags */}
-                {log.problem_tags && log.problem_tags.length > 0 && (
-                  <div className="mb-1.5 flex flex-wrap gap-1">
-                    {log.problem_tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-900/40 dark:text-red-300"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Photos */}
-                {log.photo_urls && log.photo_urls.length > 0 && (
-                  <div className="mb-1.5 flex gap-1.5 overflow-x-auto">
-                    {log.photo_urls.map((url, i) => (
-                      <img
-                        key={i}
-                        src={url}
-                        alt={`Photo ${i + 1}`}
-                        className="h-16 w-16 shrink-0 rounded-md object-cover"
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {/* Notes preview */}
-                {log.notes && (
-                  <p className="line-clamp-2 text-sm text-gray-600 dark:text-gray-400">
-                    {log.notes}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      )}
     </div>
   )
 }

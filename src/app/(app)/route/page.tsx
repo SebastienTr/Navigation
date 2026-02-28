@@ -657,7 +657,7 @@ export default function RoutePage() {
           return (
             <section
               key={group.phase}
-              className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
+              className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
             >
               {/* Phase header */}
               <button
@@ -778,7 +778,7 @@ export default function RoutePage() {
         <button
           type="button"
           onClick={handleAddStepAtEnd}
-          className="mt-4 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 text-sm font-medium text-gray-500 active:border-blue-400 active:text-blue-600 dark:border-gray-600 dark:text-gray-400"
+          className="mt-4 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 text-sm font-medium text-gray-500 active:border-blue-400 active:text-blue-600 dark:border-gray-600 dark:text-gray-400"
         >
           <Plus size={18} />
           Ajouter une étape
@@ -787,7 +787,7 @@ export default function RoutePage() {
 
       {/* Stats footer (normal mode) */}
       {!editMode && (
-        <footer className="mt-6 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+        <footer className="mt-6 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
           <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
             Résumé
           </h3>

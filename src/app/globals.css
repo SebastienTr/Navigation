@@ -1,14 +1,24 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #0a0a0a;
-  --color-go: #22C55E;
-  --color-standby: #F59E0B;
-  --color-nogo: #EF4444;
-}
+/* ── Class-based dark mode (replaces media query) ────────────────── */
+@custom-variant dark (&:where(.dark, .dark *));
 
+/* ── Nautical color palette ──────────────────────────────────────── */
 @theme inline {
+  /* Override gray with blue-tinted "ocean" scale */
+  --color-gray-50:  #f0f4f8;
+  --color-gray-100: #dfe7ef;
+  --color-gray-200: #c8d4e0;
+  --color-gray-300: #a4b5c8;
+  --color-gray-400: #7a8fa4;
+  --color-gray-500: #5c7089;
+  --color-gray-600: #46596e;
+  --color-gray-700: #34445a;
+  --color-gray-800: #1e2f44;
+  --color-gray-900: #132337;
+  --color-gray-950: #0b1929;
+
+  /* Semantic tokens */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-go: #22C55E;
@@ -16,13 +26,19 @@
   --color-nogo: #EF4444;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── Light mode defaults ─────────────────────────────────────────── */
+:root {
+  --background: #f0f4f8;
+  --foreground: #0b1929;
 }
 
+/* ── Dark mode via .dark class ───────────────────────────────────── */
+.dark {
+  --background: #0b1929;
+  --foreground: #e1e8ef;
+}
+
+/* ── Base styles ─────────────────────────────────────────────────── */
 body {
   background: var(--background);
   color: var(--foreground);
@@ -41,7 +57,7 @@ html {
   z-index: 0;
 }
 
-/* ── Chat markdown styling ──────────────────────────────────────── */
+/* ── Chat markdown styling ───────────────────────────────────────── */
 .prose-chat h1,
 .prose-chat h2,
 .prose-chat h3 {
@@ -82,10 +98,8 @@ html {
   border-radius: 4px;
   background: rgba(0,0,0,0.06);
 }
-@media (prefers-color-scheme: dark) {
-  .prose-chat code {
-    background: rgba(255,255,255,0.1);
-  }
+.dark .prose-chat code {
+  background: rgba(255,255,255,0.1);
 }
 
 .prose-chat pre {
@@ -96,10 +110,8 @@ html {
   font-size: 0.85em;
   background: rgba(0,0,0,0.06);
 }
-@media (prefers-color-scheme: dark) {
-  .prose-chat pre {
-    background: rgba(255,255,255,0.08);
-  }
+.dark .prose-chat pre {
+  background: rgba(255,255,255,0.08);
 }
 .prose-chat pre code {
   padding: 0;
@@ -111,10 +123,8 @@ html {
   border: none;
   border-top: 1px solid rgba(0,0,0,0.1);
 }
-@media (prefers-color-scheme: dark) {
-  .prose-chat hr {
-    border-top-color: rgba(255,255,255,0.1);
-  }
+.dark .prose-chat hr {
+  border-top-color: rgba(255,255,255,0.1);
 }
 
 .prose-chat blockquote {
@@ -123,8 +133,6 @@ html {
   border-left: 3px solid rgba(0,0,0,0.15);
   opacity: 0.9;
 }
-@media (prefers-color-scheme: dark) {
-  .prose-chat blockquote {
-    border-left-color: rgba(255,255,255,0.2);
-  }
+.dark .prose-chat blockquote {
+  border-left-color: rgba(255,255,255,0.2);
 }

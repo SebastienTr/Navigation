@@ -152,7 +152,7 @@ function AddTaskModal({ onClose, onSave }: AddTaskModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
-      <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl dark:bg-gray-900">
+      <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl dark:bg-gray-900">
         {/* Header */}
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -183,7 +183,7 @@ function AddTaskModal({ onClose, onSave }: AddTaskModalProps) {
             onChange={(e) => setTask(e.target.value)}
             placeholder="Décrivez la tâche..."
             autoFocus
-            className="min-h-[44px] w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-blue-400 dark:focus:ring-blue-400"
+            className="min-h-[44px] w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-blue-400 dark:focus:ring-blue-400"
           />
         </div>
 
@@ -199,7 +199,7 @@ function AddTaskModal({ onClose, onSave }: AddTaskModalProps) {
             id="category-select"
             value={category}
             onChange={(e) => setCategory(e.target.value as Category)}
-            className="min-h-[44px] w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-blue-400 dark:focus:ring-blue-400"
+            className="min-h-[44px] w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-blue-400 dark:focus:ring-blue-400"
           >
             {CATEGORY_KEYS.map((key) => (
               <option key={key} value={key}>
@@ -221,7 +221,7 @@ function AddTaskModal({ onClose, onSave }: AddTaskModalProps) {
             id="priority-select"
             value={priority}
             onChange={(e) => setPriority(e.target.value as Priority)}
-            className="min-h-[44px] w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-blue-400 dark:focus:ring-blue-400"
+            className="min-h-[44px] w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-blue-400 dark:focus:ring-blue-400"
           >
             {PRIORITY_KEYS.map((key) => (
               <option key={key} value={key}>
@@ -236,7 +236,7 @@ function AddTaskModal({ onClose, onSave }: AddTaskModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="min-h-[44px] flex-1 rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors active:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:active:bg-gray-800"
+            className="min-h-[44px] flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors active:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:active:bg-gray-800"
           >
             Annuler
           </button>
@@ -244,7 +244,7 @@ function AddTaskModal({ onClose, onSave }: AddTaskModalProps) {
             type="button"
             onClick={handleSave}
             disabled={!task.trim() || saving}
-            className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors active:bg-blue-700 disabled:opacity-50"
+            className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors active:bg-blue-700 disabled:opacity-50"
           >
             {saving && <Loader2 size={16} className="animate-spin" />}
             Ajouter
@@ -537,7 +537,7 @@ export default function ChecklistPage() {
                       return (
                         <div
                           key={item.id}
-                          className="flex items-start gap-3 rounded-xl bg-white px-3 py-3 shadow-sm dark:bg-gray-900"
+                          className="flex items-start gap-3 rounded-lg bg-white px-3 py-3 shadow-sm dark:bg-gray-900"
                         >
                           {/* Checkbox */}
                           <button
@@ -598,7 +598,7 @@ export default function ChecklistPage() {
         type="button"
         onClick={() => setShowAddModal(true)}
         aria-label="Ajouter une tâche"
-        className="fixed bottom-24 right-4 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg transition-transform active:scale-95"
+        className="fixed bottom-24 right-4 z-20 flex h-13 w-13 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/25 transition-transform active:scale-95 dark:bg-blue-500"
       >
         <Plus size={24} />
       </button>

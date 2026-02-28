@@ -195,7 +195,7 @@ export default function RemindersPage() {
               return (
                 <div
                   key={reminder.id}
-                  className={`rounded-xl border p-3 ${
+                  className={`rounded-lg border p-3 ${
                     overdue
                       ? 'border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-900/10'
                       : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900'
@@ -271,7 +271,7 @@ export default function RemindersPage() {
               return (
                 <div
                   key={reminder.id}
-                  className="rounded-xl border border-gray-100 bg-gray-50 p-3 opacity-70 dark:border-gray-800 dark:bg-gray-900/50"
+                  className="rounded-lg border border-gray-100 bg-gray-50 p-3 opacity-70 dark:border-gray-800 dark:bg-gray-900/50"
                 >
                   <div className="mb-1 flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">

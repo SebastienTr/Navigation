@@ -124,7 +124,7 @@ interface TodayBriefingProps {
 function TodayBriefing({ briefing }: TodayBriefingProps) {
   return (
     <div
-      className={`rounded-2xl border-l-4 bg-white p-5 shadow-sm dark:bg-gray-900 ${
+      className={`rounded-xl border-l-4 bg-white p-5 dark:bg-gray-900 ${
         briefing.verdict ? VERDICT_COLORS[briefing.verdict].border : 'border-gray-300'
       }`}
     >
