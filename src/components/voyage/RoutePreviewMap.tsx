@@ -102,9 +102,10 @@ function buildPolyline(steps: RouteStep[]): L.LatLngExpression[] {
 
 interface RoutePreviewMapProps {
   steps: RouteStep[]
+  overlay?: React.ReactNode
 }
 
-export default function RoutePreviewMap({ steps }: RoutePreviewMapProps) {
+export default function RoutePreviewMap({ steps, overlay }: RoutePreviewMapProps) {
   const waypoints = useMemo(() => collectWaypoints(steps), [steps])
   const polylineCoords = useMemo(() => buildPolyline(steps), [steps])
 
@@ -112,7 +113,7 @@ export default function RoutePreviewMap({ steps }: RoutePreviewMapProps) {
   const defaultCenter: L.LatLngExpression = [46.5, 2.0]
 
   return (
-    <div className="h-56 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+    <div className="relative h-56 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
       <MapContainer
         center={defaultCenter}
         zoom={5}
@@ -159,6 +160,11 @@ export default function RoutePreviewMap({ steps }: RoutePreviewMapProps) {
           </CircleMarker>
         ))}
       </MapContainer>
+      {overlay && (
+        <div className="absolute inset-0 z-[1000]">
+          {overlay}
+        </div>
+      )}
     </div>
   )
 }

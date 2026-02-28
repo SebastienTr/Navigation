@@ -49,3 +49,11 @@ next-env.d.ts
 .playwright-mcp/
 *.png
 !public/**/*.png
+
+# BMad files
+.agents/
+.claude/
+.windsurf/
+_bmad/
+
+

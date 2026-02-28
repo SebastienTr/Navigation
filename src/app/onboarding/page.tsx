@@ -290,7 +290,10 @@ function StepVoyage({
 }) {
   const update = (field: keyof VoyageData, value: string) => {
     onChange({ ...data, [field]: value })
-    onRouteConfirmed(null)
+    // Only reset confirmed route when ports change (invalidates the route)
+    if (field === 'departure_port' || field === 'arrival_port') {
+      onRouteConfirmed(null)
+    }
   }
 
   return (
