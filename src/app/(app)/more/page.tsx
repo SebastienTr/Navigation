@@ -5,6 +5,7 @@ import {
   FileText,
   CheckSquare,
   Navigation,
+  Bell,
   Settings,
   ChevronRight,
   LogOut,
@@ -37,6 +38,7 @@ const menuItems: MenuItemProps[] = [
   { href: '/briefings', icon: FileText, label: 'Briefings' },
   { href: '/checklist', icon: CheckSquare, label: 'Checklist' },
   { href: '/route', icon: Navigation, label: 'Itinéraire' },
+  { href: '/reminders', icon: Bell, label: 'Rappels' },
   { href: '/settings', icon: Settings, label: 'Paramètres' },
 ]
 

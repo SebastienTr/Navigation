@@ -124,6 +124,67 @@ function extractDiscoveredRoutes(text: string): DiscoveredRoute[] {
   return routes
 }
 
+function extractStepsFromSection(section: string): RouteStep[] {
+  const steps: RouteStep[] = []
+  const fromPortRegex = /"from_port"\s*:\s*"([^"]*)"/g
+  const positions: { port: string; pos: number }[] = []
+  let m: RegExpExecArray | null
+  while ((m = fromPortRegex.exec(section)) !== null) {
+    positions.push({ port: m[1], pos: m.index })
+  }
+
+  for (let i = 0; i < positions.length; i++) {
+    const start = positions[i].pos
+    const end = i + 1 < positions.length ? positions[i + 1].pos : section.length
+    const slice = section.slice(start, end)
+
+    const toPort = slice.match(/"to_port"\s*:\s*"([^"]*)"/)
+    const fromLat = slice.match(/"from_lat"\s*:\s*([-\d.]+)/)
+    const fromLon = slice.match(/"from_lon"\s*:\s*([-\d.]+)/)
+    const toLat = slice.match(/"to_lat"\s*:\s*([-\d.]+)/)
+    const toLon = slice.match(/"to_lon"\s*:\s*([-\d.]+)/)
+
+    if (fromLat && fromLon) {
+      steps.push({
+        order_num: i + 1,
+        name: `${positions[i].port} → ${toPort?.[1] ?? '...'}`,
+        from_port: positions[i].port,
+        to_port: toPort?.[1] ?? '',
+        from_lat: parseFloat(fromLat[1]),
+        from_lon: parseFloat(fromLon[1]),
+        to_lat: toLat ? parseFloat(toLat[1]) : null,
+        to_lon: toLon ? parseFloat(toLon[1]) : null,
+        distance_nm: null,
+        distance_km: null,
+        phase: null,
+        notes: null,
+      })
+    }
+  }
+
+  return steps
+}
+
+function extractStreamingSteps(text: string): RouteStep[][] {
+  const routeBoundary = /"name"\s*:\s*"[^"]+"\s*,\s*"summary"/g
+  const routePositions: number[] = []
+  let rm: RegExpExecArray | null
+  while ((rm = routeBoundary.exec(text)) !== null) {
+    routePositions.push(rm.index)
+  }
+  if (routePositions.length === 0) return []
+
+  const allRoutes: RouteStep[][] = []
+  for (let r = 0; r < routePositions.length; r++) {
+    const start = routePositions[r]
+    const end = r + 1 < routePositions.length ? routePositions[r + 1] : text.length
+    const steps = extractStepsFromSection(text.slice(start, end))
+    if (steps.length > 0) allRoutes.push(steps)
+  }
+
+  return allRoutes
+}
+
 // ── Dynamic import for Leaflet map (no SSR) ────────────────────────────
 
 const RoutePreviewMap = dynamic(() => import('./RoutePreviewMap'), {
@@ -158,7 +219,9 @@ export default function AIRouteWizard({
   const [streamLength, setStreamLength] = useState(0)
   const [discoveredRoutes, setDiscoveredRoutes] = useState<DiscoveredRoute[]>([])
   const [visibleCount, setVisibleCount] = useState(0)
+  const [streamingRoutes, setStreamingRoutes] = useState<RouteStep[][]>([])
   const streamAccumulatorRef = useRef('')
+  const streamingStepsCountRef = useRef(0)
 
   const abortControllerRef = useRef<AbortController | null>(null)
 
@@ -200,6 +263,9 @@ export default function AIRouteWizard({
     abortControllerRef.current = controller
     if (abortRef) abortRef.current = controller
 
+    // 5 min timeout for complex route generation
+    const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000)
+
     setLoading(true)
     setRouteError(null)
     setRouteOptions([])
@@ -207,7 +273,9 @@ export default function AIRouteWizard({
     setConfirmed(false)
     setStreamLength(0)
     setDiscoveredRoutes([])
+    setStreamingRoutes([])
     streamAccumulatorRef.current = ''
+    streamingStepsCountRef.current = 0
 
     try {
       const res = await fetch('/api/ai/route', {
@@ -276,6 +344,13 @@ export default function AIRouteWizard({
               if (routes.length > 0) {
                 setDiscoveredRoutes(routes)
               }
+              // Extract step coordinates for progressive map drawing
+              const newRoutes = extractStreamingSteps(streamAccumulatorRef.current)
+              const totalSteps = newRoutes.reduce((sum, r) => sum + r.length, 0)
+              if (totalSteps > streamingStepsCountRef.current) {
+                streamingStepsCountRef.current = totalSteps
+                setStreamingRoutes(newRoutes)
+              }
             } else if (event.type === 'done') {
               setRouteOptions(event.options || [])
             } else if (event.type === 'error') {
@@ -291,13 +366,20 @@ export default function AIRouteWizard({
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
-        // Request was cancelled (e.g. user clicked "Passer")
+        // Request was cancelled (e.g. user clicked "Passer" or timeout)
+        if (!abortControllerRef.current) {
+          // Timeout — controller was already cleared
+          setRouteError(
+            'La génération a pris trop de temps. Réessayez ou simplifiez le trajet.'
+          )
+        }
         return
       }
       setRouteError(
         'Impossible de générer les itinéraires. Vérifiez votre connexion et réessayez.'
       )
     } finally {
+      clearTimeout(timeout)
       setLoading(false)
       streamAccumulatorRef.current = ''
       abortControllerRef.current = null
@@ -312,6 +394,7 @@ export default function AIRouteWizard({
     : null
 
   const isStreaming = loadingRoutes && routeOptions.length === 0
+  const totalStreamingSteps = streamingRoutes.reduce((sum, r) => sum + r.length, 0)
 
   return (
     <div className="space-y-3">
@@ -328,18 +411,30 @@ export default function AIRouteWizard({
         </button>
       )}
 
-      {/* Loading: Map with overlay + progressive route names */}
+      {/* Loading: Map with progressive route drawing + route names */}
       {isStreaming && (
         <div className="space-y-3">
           <RoutePreviewMap
-            steps={[]}
+            steps={streamingRoutes[0] ?? []}
+            additionalRoutes={streamingRoutes.slice(1)}
             overlay={
-              <div className="flex h-full flex-col items-center justify-center bg-slate-900/60 backdrop-blur-[2px]">
-                <Loader2 className="mb-3 h-8 w-8 animate-spin text-blue-400" />
-                <p className="text-sm font-medium text-white">
-                  {getPhaseMessage(streamLength, departurePort, arrivalPort)}
-                </p>
-              </div>
+              totalStreamingSteps === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center bg-slate-900/60 backdrop-blur-[2px]">
+                  <Loader2 className="mb-3 h-8 w-8 animate-spin text-blue-400" />
+                  <p className="text-sm font-medium text-white">
+                    {getPhaseMessage(streamLength, departurePort, arrivalPort)}
+                  </p>
+                </div>
+              ) : (
+                <div className="pointer-events-none flex h-full items-end justify-center pb-2">
+                  <div className="flex items-center gap-2 rounded-full bg-slate-900/75 px-3 py-1.5 backdrop-blur-sm">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
+                    <span className="text-xs font-medium text-white">
+                      {totalStreamingSteps} étape{totalStreamingSteps > 1 ? 's' : ''} — {getPhaseMessage(streamLength, departurePort, arrivalPort)}
+                    </span>
+                  </div>
+                </div>
+              )
             }
           />
 

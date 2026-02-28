@@ -731,6 +731,13 @@ export default function OnboardingPage() {
     try {
       const supabase = createClient()
 
+      // 0. Ensure public.users row exists (trigger only fires on first sign-up,
+      //    but the row may be missing after a DB reset)
+      const { error: ensureUserErr } = await supabase
+        .from('users')
+        .upsert({ id: user.id, email: user.email ?? '' }, { onConflict: 'id' })
+      if (ensureUserErr) throw new Error(`Utilisateur : ${ensureUserErr.message}`)
+
       // 1. Insert boat
       const { data: boat, error: boatError } = await supabase
         .from('boats')

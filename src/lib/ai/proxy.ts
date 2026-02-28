@@ -149,6 +149,7 @@ export interface CallClaudeWithToolsOptions {
   toolContext: ToolCallContext
   onToolCallStart?: (event: ToolCallEvent) => void
   onToolCallResult?: (event: ToolResultEvent) => void
+  onTextDelta?: (text: string) => void
 }
 
 export interface CallClaudeWithToolsResult {
@@ -175,14 +176,17 @@ export async function callClaudeWithTools(
     toolContext,
     onToolCallStart,
     onToolCallResult,
+    onTextDelta,
   } = options
 
   let messages: Anthropic.MessageParam[] = [...options.messages]
   const toolCallsSummary: CallClaudeWithToolsResult['toolCalls'] = []
   let totalUsage = { input_tokens: 0, output_tokens: 0 }
+  let allText = ''
 
   for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
-    const response = await client.messages.create({
+    // Use streaming to get real-time text deltas
+    const stream = client.messages.stream({
       model,
       max_tokens: maxTokens,
       system: systemPrompt,
@@ -190,18 +194,21 @@ export async function callClaudeWithTools(
       tools: CHAT_TOOLS,
     })
 
+    // Stream text deltas in real-time
+    stream.on('text', (text) => {
+      allText += text
+      onTextDelta?.(text)
+    })
+
+    const response = await stream.finalMessage()
+
     totalUsage.input_tokens += response.usage.input_tokens
     totalUsage.output_tokens += response.usage.output_tokens
 
     // Si stop_reason n'est pas tool_use, on a la réponse finale
     if (response.stop_reason !== 'tool_use') {
-      const textBlocks = response.content.filter(
-        (block): block is Anthropic.TextBlock => block.type === 'text'
-      )
-      const finalText = textBlocks.map((b) => b.text).join('')
-
       return {
-        text: finalText,
+        text: allText,
         toolCalls: toolCallsSummary,
         usage: totalUsage,
       }
@@ -262,7 +269,7 @@ export async function callClaudeWithTools(
 
   // Max tours atteint — retourner ce qu'on a
   return {
-    text: 'J\'ai atteint le nombre maximum d\'actions pour cette requête. Voici ce que j\'ai fait.',
+    text: allText || 'J\'ai atteint le nombre maximum d\'actions pour cette requête. Voici ce que j\'ai fait.',
     toolCalls: toolCallsSummary,
     usage: totalUsage,
   }

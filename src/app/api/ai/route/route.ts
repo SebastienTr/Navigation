@@ -94,6 +94,9 @@ function getClient(): Anthropic {
   return clientInstance
 }
 
+// Allow up to 5 minutes for AI route generation (complex multi-step routes)
+export const maxDuration = 300
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()

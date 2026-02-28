@@ -140,17 +140,16 @@ export async function POST(request: NextRequest) {
               })}\n\n`
               controller.enqueue(encoder.encode(sseEvent))
             },
+            onTextDelta: (text) => {
+              const sseEvent = `data: ${JSON.stringify({
+                type: 'text_delta',
+                text,
+              })}\n\n`
+              controller.enqueue(encoder.encode(sseEvent))
+            },
           })
 
-          // Streamer le texte final comme text_delta (pour compatibilité frontend)
-          if (result.text) {
-            // Envoyer en un seul bloc (la boucle agentique n'est pas streamée)
-            const textEvent = `data: ${JSON.stringify({
-              type: 'text_delta',
-              text: result.text,
-            })}\n\n`
-            controller.enqueue(encoder.encode(textEvent))
-          }
+          // Text was already streamed via onTextDelta
 
           // Envoyer l'événement de fin
           const doneEvent = `data: ${JSON.stringify({
