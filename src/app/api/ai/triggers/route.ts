@@ -14,6 +14,10 @@ interface TriggerSummary {
   errors: string[]
 }
 
+// NOTE: Vercel Hobby plan limits cron jobs to 1/day max.
+// Ideally triggers would run every 4h (6am-10pm), but we're limited to once daily at 5am UTC.
+// Upgrade to Vercel Pro for "0 4-20/4 * * *" (every 4h, 6am-10pm Paris time).
+
 // ── GET — Cron endpoint for trigger evaluation ────────────────────────────
 
 export async function GET(request: NextRequest) {

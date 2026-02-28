@@ -102,7 +102,7 @@ function StatusIcon({ status }: { status: StepStatus }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function RoutePage() {
-  const { voyage, boatStatus, loading: voyageLoading } = useActiveVoyage()
+  const { voyage, boat, boatStatus, loading: voyageLoading } = useActiveVoyage()
 
   const [steps, setSteps] = useState<RouteStepRow[]>([])
   const [stepsLoading, setStepsLoading] = useState(true)
@@ -247,6 +247,16 @@ export default function RoutePage() {
   const currentPhase = boatStatus?.current_phase ?? phases.find((p) =>
     p.steps.some((s) => s.status === 'in_progress')
   )?.phase ?? null
+
+  // Estimated navigation days
+  const remainingNm = (totalNm - doneNm)
+  const remainingKm = (totalKm - doneKm)
+  const avgSpeed = boat?.avg_speed_kn ?? 4.5
+  const hoursPerDay = 8
+  const nmDays = remainingNm > 0 ? remainingNm / avgSpeed / hoursPerDay : 0
+  const kmDays = remainingKm > 0 ? remainingKm / 6 / hoursPerDay : 0 // ~6 km/h canal speed
+  const estimatedNavDays = Math.ceil(nmDays + kmDays)
+  const estimatedTotalDays = estimatedNavDays + Math.ceil(estimatedNavDays * 0.3)
 
   return (
     <div className="mx-auto max-w-lg px-4 py-4">
@@ -428,6 +438,24 @@ export default function RoutePage() {
                 {currentPhase}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">Phase actuelle</p>
+            </div>
+          )}
+
+          {/* Estimated days */}
+          {estimatedNavDays > 0 && (
+            <div>
+              <p className="text-lg font-bold text-gray-900 dark:text-white">
+                ~{estimatedNavDays}j
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Navigation restante</p>
+            </div>
+          )}
+          {estimatedTotalDays > 0 && (
+            <div>
+              <p className="text-lg font-bold text-gray-900 dark:text-white">
+                ~{estimatedTotalDays}j
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Total estimé (attente incl.)</p>
             </div>
           )}
         </div>

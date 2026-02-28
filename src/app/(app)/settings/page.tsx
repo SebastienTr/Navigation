@@ -23,6 +23,8 @@ import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { useUser, useActiveVoyage } from '@/lib/auth/hooks'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
+import AIRouteWizard from '@/components/voyage/AIRouteWizard'
+import type { RouteOption } from '@/components/voyage/AIRouteWizard'
 import type { Database } from '@/lib/supabase/types'
 
 type BoatRow = Database['public']['Tables']['boats']['Row']
@@ -626,10 +628,16 @@ function NewVoyageForm({
   onCancel: () => void
 }) {
   const [name, setName] = useState('')
+  const [departurePort, setDeparturePort] = useState('')
+  const [arrivalPort, setArrivalPort] = useState('')
   const [boatId, setBoatId] = useState(boats[0]?.id ?? '')
   const [profileId, setProfileId] = useState(navProfiles[0]?.id ?? '')
+  const [confirmedRoute, setConfirmedRoute] = useState<RouteOption | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const selectedBoat = boats.find((b) => b.id === boatId) ?? null
+  const selectedProfile = navProfiles.find((p) => p.id === profileId) ?? null
 
   const handleCreate = async () => {
     if (!name.trim()) {
@@ -670,11 +678,43 @@ function NewVoyageForm({
       .from('boat_status')
       .insert({
         voyage_id: voyage.id,
+        current_position: departurePort || null,
         nav_status: 'in_port' as const,
+        fuel_tank: 'full',
+        water: 'full',
+        jerricans: 0,
       })
 
     if (statusError) {
       console.error('Erreur création boat_status:', statusError.message)
+    }
+
+    // Insert route_steps if a route was confirmed
+    if (confirmedRoute && confirmedRoute.steps.length > 0) {
+      const routeStepsPayload = confirmedRoute.steps.map((step) => ({
+        voyage_id: voyage.id,
+        order_num: step.order_num,
+        name: step.name,
+        from_port: step.from_port,
+        to_port: step.to_port,
+        from_lat: step.from_lat,
+        from_lon: step.from_lon,
+        to_lat: step.to_lat,
+        to_lon: step.to_lon,
+        distance_nm: step.distance_nm,
+        distance_km: step.distance_km,
+        phase: step.phase,
+        notes: step.notes,
+        status: 'to_do' as const,
+      }))
+
+      const { error: stepsError } = await supabase
+        .from('route_steps')
+        .insert(routeStepsPayload)
+
+      if (stepsError) {
+        console.error('Erreur création route_steps:', stepsError.message)
+      }
     }
 
     setSaving(false)
@@ -729,6 +769,52 @@ function NewVoyageForm({
           ))}
         </select>
       </Field>
+
+      <Field label="Port de départ">
+        <input
+          type="text"
+          className={inputClass}
+          value={departurePort}
+          onChange={(e) => setDeparturePort(e.target.value)}
+          placeholder="Ex: Audierne"
+        />
+      </Field>
+
+      <Field label="Port d'arrivée">
+        <input
+          type="text"
+          className={inputClass}
+          value={arrivalPort}
+          onChange={(e) => setArrivalPort(e.target.value)}
+          placeholder="Ex: Nice"
+        />
+      </Field>
+
+      {/* AI Route Wizard */}
+      {departurePort.trim() && arrivalPort.trim() && selectedBoat && (
+        <AIRouteWizard
+          departurePort={departurePort}
+          arrivalPort={arrivalPort}
+          boat={{
+            name: selectedBoat.name,
+            type: selectedBoat.type,
+            length_m: selectedBoat.length_m,
+            draft_m: selectedBoat.draft_m,
+            air_draft_m: selectedBoat.air_draft_m,
+            engine_type: selectedBoat.engine_type,
+            fuel_capacity_hours: selectedBoat.fuel_capacity_hours,
+            avg_speed_kn: selectedBoat.avg_speed_kn,
+          }}
+          profile={{
+            experience: selectedProfile?.experience ?? null,
+            crew_mode: selectedProfile?.crew_mode ?? null,
+            risk_tolerance: selectedProfile?.risk_tolerance ?? null,
+            night_sailing: selectedProfile?.night_sailing ?? null,
+            max_continuous_hours: selectedProfile?.max_continuous_hours ?? null,
+          }}
+          onRouteConfirmed={setConfirmedRoute}
+        />
+      )}
 
       {error && (
         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>

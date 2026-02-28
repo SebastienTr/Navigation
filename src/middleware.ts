@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 const PUBLIC_ROUTES = [
   '/login',
+  '/onboarding',
   '/auth/callback',
   '/api/weather',
   '/api/tides',
@@ -64,6 +65,22 @@ export async function middleware(request: NextRequest) {
     url.pathname = '/login'
     url.searchParams.set('redirectTo', pathname)
     return NextResponse.redirect(url)
+  }
+
+  // If user hasn't completed onboarding, redirect to /onboarding
+  // (skip if already on /onboarding or on API routes)
+  if (!pathname.startsWith('/onboarding') && !pathname.startsWith('/api/')) {
+    const { data } = await supabase
+      .from('users')
+      .select('onboarding_completed')
+      .eq('id', user.id)
+      .single()
+
+    if (data && !data.onboarding_completed) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/onboarding'
+      return NextResponse.redirect(url)
+    }
   }
 
   return supabaseResponse

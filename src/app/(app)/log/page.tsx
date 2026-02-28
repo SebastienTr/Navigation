@@ -23,6 +23,7 @@ import { useAuth } from '@/lib/auth/context'
 import { useActiveVoyage } from '@/lib/auth/hooks'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { createClient } from '@/lib/supabase/client'
+import { uploadLogPhotos } from '@/lib/supabase/storage'
 import { queueLogEntry, getPendingLogs, removePendingLog, getPendingCount } from '@/lib/offline-queue'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import type { Database } from '@/lib/supabase/types'
@@ -318,6 +319,15 @@ export default function LogPage() {
       setToast('Sauvegardé hors-ligne — sera synchronisé au retour du réseau')
     } else {
       const supabase = createClient()
+
+      // Upload photos if any
+      if (photos.length > 0) {
+        const photoFiles = photos.map((p) => p.file)
+        const urls = await uploadLogPhotos(supabase, user.id, voyage.id, photoFiles)
+        if (urls.length > 0) {
+          logEntry.photo_urls = urls
+        }
+      }
 
       const { error: logError } = await supabase
         .from('logs')
@@ -660,7 +670,7 @@ export default function LogPage() {
           </div>
           {photos.length > 0 && (
             <p className="mt-1 text-[10px] text-gray-400 dark:text-gray-500">
-              {photos.length} photo(s) — stockage local uniquement
+              {photos.length} photo(s){!isOnline ? ' — sera uploadé au retour du réseau' : ''}
             </p>
           )}
         </div>
@@ -754,6 +764,20 @@ export default function LogPage() {
                       >
                         {tag}
                       </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Photos */}
+                {log.photo_urls && log.photo_urls.length > 0 && (
+                  <div className="mb-1.5 flex gap-1.5 overflow-x-auto">
+                    {log.photo_urls.map((url, i) => (
+                      <img
+                        key={i}
+                        src={url}
+                        alt={`Photo ${i + 1}`}
+                        className="h-16 w-16 shrink-0 rounded-md object-cover"
+                      />
                     ))}
                   </div>
                 )}

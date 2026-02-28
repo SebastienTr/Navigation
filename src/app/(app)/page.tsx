@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import {
   Wind,
@@ -14,17 +15,28 @@ import {
   ChevronRight,
   RefreshCw,
   Check,
+  Bell,
+  AlertTriangle,
+  BookOpen,
+  Coffee,
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth/context'
 import { useActiveVoyage } from '@/lib/auth/hooks'
 import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/Card'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { timeAgo } from '@/lib/utils'
 import type { Database } from '@/lib/supabase/types'
 
 type BriefingRow = Database['public']['Tables']['briefings']['Row']
 type RouteStepRow = Database['public']['Tables']['route_steps']['Row']
+type LogRow = Database['public']['Tables']['logs']['Row']
+type ReminderRow = Database['public']['Tables']['reminders']['Row']
+
+const MiniMapDynamic = dynamic(() => import('@/components/map/MiniMapView'), {
+  ssr: false,
+  loading: () => <Skeleton className="h-40" />,
+})
 
 // ── Verdict colors ────────────────────────────────────────────────────────
 
@@ -83,42 +95,163 @@ function windDirectionLabel(degrees: number): string {
   return directions[index]
 }
 
-// ── VerdictCard ───────────────────────────────────────────────────────────
+// ── PushPermissionBanner ─────────────────────────────────────────────────
 
-function VerdictCard({ voyageId }: { voyageId: string }) {
-  const router = useRouter()
-  const [briefing, setBriefing] = useState<BriefingRow | null>(null)
-  const [loading, setLoading] = useState(true)
+function PushPermissionBanner() {
+  const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    const fetchBriefing = async () => {
-      const supabase = createClient()
-      const { data, error } = await supabase
-        .from('briefings')
-        .select('*')
-        .eq('voyage_id', voyageId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .returns<BriefingRow[]>()
-        .maybeSingle()
+    if (typeof window === 'undefined') return
+    if (typeof Notification === 'undefined') return
+    if (Notification.permission !== 'default') return
+    if (localStorage.getItem('push_prompt_dismissed') === '1') return
+    setVisible(true)
+  }, [])
 
-      if (error) {
-        console.error('Failed to fetch briefing:', error.message)
-      } else {
-        setBriefing(data)
+  if (!visible) return null
+
+  const handleActivate = async () => {
+    try {
+      const permission = await Notification.requestPermission()
+      if (permission === 'granted') {
+        setVisible(false)
       }
-      setLoading(false)
+    } catch {
+      // User denied
     }
+    setVisible(false)
+  }
 
-    fetchBriefing()
-  }, [voyageId])
+  const handleDismiss = () => {
+    localStorage.setItem('push_prompt_dismissed', '1')
+    setVisible(false)
+  }
+
+  return (
+    <Card className="flex items-center gap-3 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40">
+      <Bell size={20} className="shrink-0 text-blue-500" />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+          Activez les notifications pour recevoir alertes et briefings
+        </p>
+      </div>
+      <div className="flex shrink-0 gap-2">
+        <button
+          type="button"
+          onClick={handleDismiss}
+          className="rounded-lg px-3 py-1.5 text-xs font-medium text-blue-600 active:bg-blue-100 dark:text-blue-400"
+        >
+          Plus tard
+        </button>
+        <button
+          type="button"
+          onClick={handleActivate}
+          className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white active:bg-blue-700"
+        >
+          Activer
+        </button>
+      </div>
+    </Card>
+  )
+}
+
+// ── MateMessages ─────────────────────────────────────────────────────────
+
+interface MateAlert {
+  key: string
+  icon: React.ReactNode
+  message: string
+  color: string
+}
+
+function MateMessages({
+  latestLog,
+  fuelTank,
+  pendingReminders,
+  hasBriefingToday,
+}: {
+  latestLog: LogRow | null
+  fuelTank: string | null
+  pendingReminders: ReminderRow[]
+  hasBriefingToday: boolean
+}) {
+  const alerts: MateAlert[] = []
+
+  // Check last log > 12h
+  if (latestLog) {
+    const logAge = Date.now() - new Date(latestLog.created_at).getTime()
+    const hoursAgo = Math.round(logAge / (1000 * 60 * 60))
+    if (hoursAgo >= 12) {
+      alerts.push({
+        key: 'log',
+        icon: <BookOpen size={14} />,
+        message: `Pas de journal depuis ${hoursAgo}h`,
+        color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+      })
+    }
+  }
+
+  // Low fuel
+  const fuelPercent = LEVEL_VALUES[fuelTank ?? ''] ?? 100
+  if (fuelPercent <= 25 && fuelTank) {
+    alerts.push({
+      key: 'fuel',
+      icon: <Fuel size={14} />,
+      message: 'Niveau carburant bas',
+      color: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+    })
+  }
+
+  // Pending reminders
+  for (const reminder of pendingReminders) {
+    alerts.push({
+      key: `reminder-${reminder.id}`,
+      icon: <AlertTriangle size={14} />,
+      message: reminder.message,
+      color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+    })
+  }
+
+  // No briefing today
+  if (!hasBriefingToday) {
+    alerts.push({
+      key: 'briefing',
+      icon: <Coffee size={14} />,
+      message: 'Briefing du jour non disponible',
+      color: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+    })
+  }
+
+  if (alerts.length === 0) return null
+
+  return (
+    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+      {alerts.map((alert) => (
+        <span
+          key={alert.key}
+          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${alert.color}`}
+        >
+          {alert.icon}
+          {alert.message}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+// ── VerdictCard ───────────────────────────────────────────────────────────
+
+function VerdictCard({
+  briefing,
+  loading,
+}: {
+  briefing: BriefingRow | null
+  loading: boolean
+}) {
+  const router = useRouter()
 
   if (loading) {
-    return (
-      <Card className="flex min-h-[120px] items-center justify-center">
-        <LoadingSpinner size="sm" />
-      </Card>
-    )
+    return <Skeleton className="h-[120px]" />
   }
 
   if (!briefing || !briefing.verdict) {
@@ -206,11 +339,7 @@ function WeatherSummary({
   }, [fetchWeather])
 
   if (loading) {
-    return (
-      <Card className="flex min-h-[80px] items-center justify-center">
-        <LoadingSpinner size="sm" />
-      </Card>
-    )
+    return <Skeleton className="h-[120px]" />
   }
 
   if (!weather) {
@@ -488,38 +617,17 @@ function LevelRow({
 
 // ── RouteProgress ─────────────────────────────────────────────────────────
 
-function RouteProgress({ voyageId }: { voyageId: string }) {
+function RouteProgress({
+  steps,
+  loading,
+}: {
+  steps: RouteStepRow[]
+  loading: boolean
+}) {
   const router = useRouter()
-  const [steps, setSteps] = useState<RouteStepRow[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const fetchSteps = async () => {
-      const supabase = createClient()
-      const { data, error } = await supabase
-        .from('route_steps')
-        .select('*')
-        .eq('voyage_id', voyageId)
-        .order('order_num', { ascending: true })
-        .returns<RouteStepRow[]>()
-
-      if (error) {
-        console.error('Failed to fetch route steps:', error.message)
-      } else {
-        setSteps(data ?? [])
-      }
-      setLoading(false)
-    }
-
-    fetchSteps()
-  }, [voyageId])
 
   if (loading) {
-    return (
-      <Card className="flex min-h-[80px] items-center justify-center">
-        <LoadingSpinner size="sm" />
-      </Card>
-    )
+    return <Skeleton className="h-[100px]" />
   }
 
   if (steps.length === 0) {
@@ -582,23 +690,6 @@ function RouteProgress({ voyageId }: { voyageId: string }) {
           className="h-full rounded-full bg-blue-500 transition-all"
           style={{ width: `${progressPercent}%` }}
         />
-      </div>
-    </Card>
-  )
-}
-
-// ── MiniMap ───────────────────────────────────────────────────────────────
-
-function MiniMap() {
-  const router = useRouter()
-
-  return (
-    <Card onClick={() => router.push('/map')}>
-      <div className="flex h-32 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/30">
-        <div className="flex flex-col items-center gap-1 text-blue-400 dark:text-blue-500">
-          <MapPin size={24} />
-          <span className="text-sm font-medium">Voir la carte</span>
-        </div>
       </div>
     </Card>
   )
@@ -671,10 +762,101 @@ export default function DashboardPage() {
   const { voyage, boatStatus, loading, refresh } = useActiveVoyage()
   const { containerRef, pullDistance, refreshing } = usePullToRefresh(refresh)
 
+  const [briefing, setBriefing] = useState<BriefingRow | null>(null)
+  const [briefingLoading, setBriefingLoading] = useState(true)
+  const [routeSteps, setRouteSteps] = useState<RouteStepRow[]>([])
+  const [routeLoading, setRouteLoading] = useState(true)
+  const [latestLog, setLatestLog] = useState<LogRow | null>(null)
+  const [pendingReminders, setPendingReminders] = useState<ReminderRow[]>([])
+
+  // Fetch data when voyage is available
+  useEffect(() => {
+    if (!voyage) {
+      setBriefingLoading(false)
+      setRouteLoading(false)
+      return
+    }
+
+    const supabase = createClient()
+
+    // Fetch briefing
+    const fetchBriefing = async () => {
+      const { data, error } = await supabase
+        .from('briefings')
+        .select('*')
+        .eq('voyage_id', voyage.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .returns<BriefingRow[]>()
+        .maybeSingle()
+
+      if (error) {
+        console.error('Failed to fetch briefing:', error.message)
+      } else {
+        setBriefing(data)
+      }
+      setBriefingLoading(false)
+    }
+
+    // Fetch route steps
+    const fetchSteps = async () => {
+      const { data, error } = await supabase
+        .from('route_steps')
+        .select('*')
+        .eq('voyage_id', voyage.id)
+        .order('order_num', { ascending: true })
+        .returns<RouteStepRow[]>()
+
+      if (error) {
+        console.error('Failed to fetch route steps:', error.message)
+      } else {
+        setRouteSteps(data ?? [])
+      }
+      setRouteLoading(false)
+    }
+
+    // Fetch latest log
+    const fetchLatestLog = async () => {
+      const { data } = await supabase
+        .from('logs')
+        .select('*')
+        .eq('voyage_id', voyage.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .returns<LogRow[]>()
+        .maybeSingle()
+
+      setLatestLog(data ?? null)
+    }
+
+    // Fetch pending reminders
+    const fetchReminders = async () => {
+      const { data } = await supabase
+        .from('reminders')
+        .select('*')
+        .eq('voyage_id', voyage.id)
+        .eq('status', 'pending')
+        .lte('remind_at', new Date().toISOString())
+        .returns<ReminderRow[]>()
+
+      setPendingReminders(data ?? [])
+    }
+
+    fetchBriefing()
+    fetchSteps()
+    fetchLatestLog()
+    fetchReminders()
+  }, [voyage])
+
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <LoadingSpinner text="Chargement du tableau de bord..." />
+      <div className="space-y-3 p-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-[120px]" />
+        <Skeleton className="h-[120px]" />
+        <Skeleton className="h-[80px]" />
+        <Skeleton className="h-[100px]" />
+        <Skeleton className="h-40" />
       </div>
     )
   }
@@ -696,6 +878,11 @@ export default function DashboardPage() {
       </div>
     )
   }
+
+  const today = new Date().toISOString().slice(0, 10)
+  const hasBriefingToday = briefing
+    ? briefing.created_at.slice(0, 10) === today
+    : false
 
   return (
     <div ref={containerRef} className="relative">
@@ -734,7 +921,16 @@ export default function DashboardPage() {
           )}
         </header>
 
-        <VerdictCard voyageId={voyage.id} />
+        <PushPermissionBanner />
+
+        <VerdictCard briefing={briefing} loading={briefingLoading} />
+
+        <MateMessages
+          latestLog={latestLog}
+          fuelTank={boatStatus?.fuel_tank ?? null}
+          pendingReminders={pendingReminders}
+          hasBriefingToday={hasBriefingToday}
+        />
 
         <WeatherSummary
           lat={boatStatus?.current_lat ?? null}
@@ -749,9 +945,17 @@ export default function DashboardPage() {
           onUpdated={refresh}
         />
 
-        <RouteProgress voyageId={voyage.id} />
+        <RouteProgress steps={routeSteps} loading={routeLoading} />
 
-        <MiniMap />
+        <Card onClick={() => { window.location.href = '/map' }}>
+          <div className="h-40 overflow-hidden rounded-lg">
+            <MiniMapDynamic
+              routeSteps={routeSteps}
+              boatLat={boatStatus?.current_lat ?? null}
+              boatLon={boatStatus?.current_lon ?? null}
+            />
+          </div>
+        </Card>
       </div>
     </div>
   )

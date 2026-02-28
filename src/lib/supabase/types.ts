@@ -283,6 +283,7 @@ export interface Database {
           problem_tags: string[] | null
           notes: string | null
           photo_url: string | null
+          photo_urls: string[] | null
         }
         Insert: {
           id?: string
@@ -300,6 +301,7 @@ export interface Database {
           problem_tags?: string[] | null
           notes?: string | null
           photo_url?: string | null
+          photo_urls?: string[] | null
         }
         Update: {
           id?: string
@@ -317,6 +319,7 @@ export interface Database {
           problem_tags?: string[] | null
           notes?: string | null
           photo_url?: string | null
+          photo_urls?: string[] | null
         }
         Relationships: [
           {

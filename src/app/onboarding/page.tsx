@@ -10,13 +10,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
-  Sparkles,
-  AlertTriangle,
   SkipForward,
   Anchor,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/lib/auth/context'
+import AIRouteWizard from '@/components/voyage/AIRouteWizard'
+import type { RouteOption } from '@/components/voyage/AIRouteWizard'
 import type { Database } from '@/lib/supabase/types'
 
 type BoatRow = Database['public']['Tables']['boats']['Row']
@@ -52,33 +52,6 @@ interface VoyageData {
   name: string
   departure_port: string
   arrival_port: string
-}
-
-interface RouteStep {
-  order_num: number
-  name: string
-  from_port: string
-  to_port: string
-  distance_nm: number | null
-  distance_km: number | null
-  phase: string | null
-  notes: string | null
-  from_lat: number | null
-  from_lon: number | null
-  to_lat: number | null
-  to_lon: number | null
-}
-
-interface RouteOption {
-  id: string
-  name: string
-  summary: string
-  distance: string
-  estimated_days: string
-  pros: string[]
-  cons: string[]
-  warnings: string[]
-  steps: RouteStep[]
 }
 
 // ── Step components ────────────────────────────────────────────────────
@@ -311,82 +284,10 @@ function StepVoyage({
   profileData: ProfileData
   onRouteConfirmed: (route: RouteOption | null) => void
 }) {
-  const [routeOptions, setRouteOptions] = useState<RouteOption[]>([])
-  const [selectedRoute, setSelectedRoute] = useState<string | null>(null)
-  const [loadingRoutes, setLoadingRoutes] = useState(false)
-  const [routeError, setRouteError] = useState<string | null>(null)
-  const [showCustom, setShowCustom] = useState(false)
-  const [customDescription, setCustomDescription] = useState('')
-  const [confirmed, setConfirmed] = useState(false)
-
   const update = (field: keyof VoyageData, value: string) => {
     onChange({ ...data, [field]: value })
-    // Reset route selection when ports change
-    setRouteOptions([])
-    setSelectedRoute(null)
-    setConfirmed(false)
     onRouteConfirmed(null)
   }
-
-  const generateRoutes = async (customText?: string) => {
-    setLoadingRoutes(true)
-    setRouteError(null)
-    setRouteOptions([])
-    setSelectedRoute(null)
-    setConfirmed(false)
-
-    try {
-      const res = await fetch('/api/ai/route', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          departure_port: data.departure_port,
-          arrival_port: data.arrival_port,
-          custom_description: customText || undefined,
-          boat: {
-            name: boatData.name,
-            type: boatData.type,
-            length_m: boatData.length_m ? parseFloat(boatData.length_m) : null,
-            draft_m: boatData.draft_m ? parseFloat(boatData.draft_m) : null,
-            air_draft_m: boatData.air_draft_m
-              ? parseFloat(boatData.air_draft_m)
-              : null,
-            engine_type: boatData.engine_type,
-            fuel_capacity_hours: boatData.fuel_capacity_hours
-              ? parseFloat(boatData.fuel_capacity_hours)
-              : null,
-            avg_speed_kn: boatData.avg_speed_kn
-              ? parseFloat(boatData.avg_speed_kn)
-              : null,
-          },
-          profile: {
-            experience: profileData.experience,
-            crew_mode: profileData.crew_mode,
-            risk_tolerance: profileData.risk_tolerance,
-            night_sailing: profileData.night_sailing,
-            max_continuous_hours: profileData.max_continuous_hours
-              ? parseFloat(profileData.max_continuous_hours)
-              : null,
-          },
-        }),
-      })
-
-      if (!res.ok) {
-        throw new Error('Erreur lors de la génération des routes')
-      }
-
-      const result = await res.json()
-      setRouteOptions(result.options || [])
-    } catch {
-      setRouteError(
-        'Impossible de générer les itinéraires. Vérifiez votre connexion et réessayez.'
-      )
-    } finally {
-      setLoadingRoutes(false)
-    }
-  }
-
-  const canGenerate = data.departure_port.trim() && data.arrival_port.trim()
 
   return (
     <div className="space-y-5">
@@ -428,235 +329,28 @@ function StepVoyage({
         required
       />
 
-      {/* Generate button */}
-      {!loadingRoutes && routeOptions.length === 0 && !confirmed && (
-        <button
-          type="button"
-          disabled={!canGenerate || loadingRoutes}
-          onClick={() => generateRoutes()}
-          className="w-full h-[52px] rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white font-semibold text-base transition-colors flex items-center justify-center gap-2"
-        >
-          <Sparkles className="w-5 h-5" />
-          Générer les itinéraires
-        </button>
-      )}
-
-      {/* Loading state */}
-      {loadingRoutes && (
-        <div className="flex flex-col items-center justify-center py-10 gap-3">
-          <Loader2 className="w-8 h-8 text-blue-600 dark:text-blue-400 animate-spin" />
-          <p className="text-sm text-slate-500 dark:text-slate-400 text-center">
-            L&apos;IA analyse les routes possibles...
-          </p>
-        </div>
-      )}
-
-      {/* Error */}
-      {routeError && (
-        <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-          <p className="text-sm text-red-700 dark:text-red-400">
-            {routeError}
-          </p>
-          <button
-            type="button"
-            onClick={() => generateRoutes()}
-            className="mt-2 text-sm font-medium text-red-700 dark:text-red-400 underline min-h-[44px]"
-          >
-            Réessayer
-          </button>
-        </div>
-      )}
-
-      {/* Route options */}
-      {routeOptions.length > 0 && !confirmed && (
-        <div className="space-y-3">
-          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Choisissez un itinéraire :
-          </p>
-
-          {routeOptions.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => {
-                setSelectedRoute(option.id)
-                setShowCustom(false)
-              }}
-              className={`w-full text-left p-4 rounded-xl border-2 transition-colors ${
-                selectedRoute === option.id
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                  : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <h3 className="font-semibold text-slate-900 dark:text-white text-base">
-                  {option.name}
-                </h3>
-                <div
-                  className={`w-5 h-5 rounded-full border-2 shrink-0 mt-0.5 flex items-center justify-center ${
-                    selectedRoute === option.id
-                      ? 'border-blue-500 bg-blue-500'
-                      : 'border-slate-300 dark:border-slate-600'
-                  }`}
-                >
-                  {selectedRoute === option.id && (
-                    <div className="w-2 h-2 rounded-full bg-white" />
-                  )}
-                </div>
-              </div>
-              <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
-                {option.summary}
-              </p>
-              <div className="flex gap-4 text-xs text-slate-500 dark:text-slate-400 mb-3">
-                <span>{option.distance}</span>
-                <span>{option.estimated_days}</span>
-              </div>
-
-              {/* Pros */}
-              {option.pros.length > 0 && (
-                <div className="space-y-1 mb-2">
-                  {option.pros.map((pro, i) => (
-                    <p
-                      key={i}
-                      className="text-xs text-green-700 dark:text-green-400"
-                    >
-                      + {pro}
-                    </p>
-                  ))}
-                </div>
-              )}
-
-              {/* Cons */}
-              {option.cons.length > 0 && (
-                <div className="space-y-1 mb-2">
-                  {option.cons.map((con, i) => (
-                    <p
-                      key={i}
-                      className="text-xs text-red-600 dark:text-red-400"
-                    >
-                      - {con}
-                    </p>
-                  ))}
-                </div>
-              )}
-
-              {/* Warnings */}
-              {option.warnings.length > 0 && (
-                <div className="space-y-1">
-                  {option.warnings.map((warning, i) => (
-                    <div
-                      key={i}
-                      className="flex items-start gap-1.5"
-                    >
-                      <AlertTriangle className="w-3 h-3 text-amber-500 shrink-0 mt-0.5" />
-                      <p className="text-xs text-amber-700 dark:text-amber-400">
-                        {warning}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </button>
-          ))}
-
-          {/* Custom "Autre" option */}
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedRoute(null)
-              setShowCustom(true)
-            }}
-            className={`w-full text-left p-4 rounded-xl border-2 transition-colors ${
-              showCustom
-                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="font-semibold text-slate-900 dark:text-white">
-                Autre
-              </span>
-              <div
-                className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center ${
-                  showCustom
-                    ? 'border-blue-500 bg-blue-500'
-                    : 'border-slate-300 dark:border-slate-600'
-                }`}
-              >
-                {showCustom && (
-                  <div className="w-2 h-2 rounded-full bg-white" />
-                )}
-              </div>
-            </div>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Décrivez votre itinéraire préféré
-            </p>
-          </button>
-
-          {/* Custom text area */}
-          {showCustom && (
-            <div className="space-y-3">
-              <textarea
-                value={customDescription}
-                onChange={(e) => setCustomDescription(e.target.value)}
-                placeholder="ex: Je veux passer par le canal du Midi mais m'arrêter à Bordeaux 3 jours..."
-                rows={4}
-                className="w-full p-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none"
-              />
-              <button
-                type="button"
-                disabled={!customDescription.trim() || loadingRoutes}
-                onClick={() => generateRoutes(customDescription)}
-                className="w-full h-[48px] rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
-              >
-                <Sparkles className="w-4 h-4" />
-                Générer un itinéraire personnalisé
-              </button>
-            </div>
-          )}
-
-          {/* Map preview placeholder */}
-          {selectedRoute && (
-            <div className="h-48 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center">
-              <div className="text-center">
-                <Map className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                <p className="text-sm text-slate-400">
-                  Aperçu de la carte
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Confirm button */}
-          {selectedRoute && (
-            <button
-              type="button"
-              onClick={() => {
-                setConfirmed(true)
-                const route = routeOptions.find((o) => o.id === selectedRoute) ?? null
-                onRouteConfirmed(route)
-              }}
-              className="w-full h-[52px] rounded-xl bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-semibold text-base transition-colors flex items-center justify-center gap-2"
-            >
-              <CheckCircle className="w-5 h-5" />
-              Valider l&apos;itinéraire
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Confirmed state */}
-      {confirmed && selectedRoute && (
-        <div className="p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 flex items-center gap-3">
-          <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0" />
-          <p className="text-sm text-green-700 dark:text-green-400">
-            Itinéraire validé :{' '}
-            <span className="font-semibold">
-              {routeOptions.find((o) => o.id === selectedRoute)?.name}
-            </span>
-          </p>
-        </div>
-      )}
+      <AIRouteWizard
+        departurePort={data.departure_port}
+        arrivalPort={data.arrival_port}
+        boat={{
+          name: boatData.name,
+          type: boatData.type || null,
+          length_m: boatData.length_m ? parseFloat(boatData.length_m) : null,
+          draft_m: boatData.draft_m ? parseFloat(boatData.draft_m) : null,
+          air_draft_m: boatData.air_draft_m ? parseFloat(boatData.air_draft_m) : null,
+          engine_type: boatData.engine_type || null,
+          fuel_capacity_hours: boatData.fuel_capacity_hours ? parseFloat(boatData.fuel_capacity_hours) : null,
+          avg_speed_kn: boatData.avg_speed_kn ? parseFloat(boatData.avg_speed_kn) : null,
+        }}
+        profile={{
+          experience: profileData.experience || null,
+          crew_mode: profileData.crew_mode || null,
+          risk_tolerance: profileData.risk_tolerance || null,
+          night_sailing: profileData.night_sailing || null,
+          max_continuous_hours: profileData.max_continuous_hours ? parseFloat(profileData.max_continuous_hours) : null,
+        }}
+        onRouteConfirmed={onRouteConfirmed}
+      />
     </div>
   )
 }
