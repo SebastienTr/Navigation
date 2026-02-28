@@ -306,17 +306,23 @@ export default function MapView({
       <MapController onMapInstance={handleMapInstance} />
       <ZoomTracker onZoomChange={setCurrentZoom} />
 
-      {/* OSM base tiles */}
+      {/* ESRI Ocean Basemap — nautical chart style with bathymetry */}
       <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+        url="https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}"
+        attribution='&copy; <a href="https://www.esri.com">Esri</a>, GEBCO, NOAA'
+        maxZoom={13}
+      />
+      {/* ESRI Ocean Reference — labels and place names on top of base */}
+      <TileLayer
+        url="https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}"
+        maxZoom={13}
       />
 
-      {/* OpenSeaMap overlay */}
+      {/* OpenSeaMap overlay — navigation marks, buoys, lights */}
       <TileLayer
         url="https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openseamap.org">OpenSeaMap</a>'
-        opacity={0.8}
+        opacity={0.85}
       />
 
       {/* Danger zones */}

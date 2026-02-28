@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
-  Map,
+  Route,
   BookOpen,
   MessageCircle,
   Menu,
@@ -19,7 +19,7 @@ interface NavTab {
 
 const tabs: NavTab[] = [
   { label: 'Accueil', href: '/', icon: LayoutDashboard },
-  { label: 'Carte', href: '/map', icon: Map },
+  { label: 'Route', href: '/route', icon: Route },
   { label: 'Journal', href: '/log', icon: BookOpen },
   { label: 'Chat', href: '/chat', icon: MessageCircle },
   { label: 'Plus', href: '/more', icon: Menu },

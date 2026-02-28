@@ -12,6 +12,7 @@ import {
   Shield,
   Loader2,
 } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
 import { useAuth } from '@/lib/auth/context'
 import { useActiveVoyage } from '@/lib/auth/hooks'
 import { createClient } from '@/lib/supabase/client'
@@ -177,9 +178,9 @@ function TodayBriefing({ briefing }: TodayBriefingProps) {
 
       {/* Content */}
       <div className="mt-3 border-t border-gray-100 pt-3 dark:border-gray-800">
-        <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700 dark:text-gray-300">
-          {briefing.content}
-        </p>
+        <div className="prose-briefing text-gray-700 dark:text-gray-300">
+          <ReactMarkdown>{briefing.content}</ReactMarkdown>
+        </div>
       </div>
     </div>
   )
@@ -257,9 +258,9 @@ function BriefingCard({ briefing, isExpanded, onToggle }: BriefingCardProps) {
               </span>
             )}
           </div>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700 dark:text-gray-300">
-            {briefing.content}
-          </p>
+          <div className="prose-briefing text-gray-700 dark:text-gray-300">
+            <ReactMarkdown>{briefing.content}</ReactMarkdown>
+          </div>
         </div>
       )}
     </div>
