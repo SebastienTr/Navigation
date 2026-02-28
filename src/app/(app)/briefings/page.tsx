@@ -11,6 +11,7 @@ import {
   Waves,
   Shield,
   Loader2,
+  Trash2,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { useAuth } from '@/lib/auth/context'
@@ -120,9 +121,12 @@ function ConfidenceBadge({ confidence }: { confidence: string | null }) {
 
 interface TodayBriefingProps {
   briefing: BriefingRow
+  onDelete: (id: string) => void
 }
 
-function TodayBriefing({ briefing }: TodayBriefingProps) {
+function TodayBriefing({ briefing, onDelete }: TodayBriefingProps) {
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
   return (
     <div
       className={`rounded-xl border-l-4 bg-white p-5 dark:bg-gray-900 ${
@@ -138,7 +142,35 @@ function TodayBriefing({ briefing }: TodayBriefingProps) {
             {formatDate(briefing.date)} à {new Date(briefing.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
-        {briefing.verdict && <VerdictBadge verdict={briefing.verdict} large />}
+        <div className="flex items-center gap-2">
+          {briefing.verdict && <VerdictBadge verdict={briefing.verdict} large />}
+          {confirmDelete ? (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => onDelete(briefing.id)}
+                className="rounded-lg bg-red-500 px-2.5 py-1 text-xs font-medium text-white"
+              >
+                Supprimer
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(false)}
+                className="rounded-lg px-2 py-1 text-xs text-gray-500"
+              >
+                Annuler
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              className="rounded-lg p-1.5 text-gray-400 hover:text-red-500 dark:text-gray-500"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
       {briefing.confidence && (
@@ -190,9 +222,12 @@ interface BriefingCardProps {
   briefing: BriefingRow
   isExpanded: boolean
   onToggle: () => void
+  onDelete: (id: string) => void
 }
 
-function BriefingCard({ briefing, isExpanded, onToggle }: BriefingCardProps) {
+function BriefingCard({ briefing, isExpanded, onToggle, onDelete }: BriefingCardProps) {
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
   return (
     <div className="rounded-xl bg-white shadow-sm dark:bg-gray-900">
       <button
@@ -261,6 +296,35 @@ function BriefingCard({ briefing, isExpanded, onToggle }: BriefingCardProps) {
           <div className="prose-briefing text-gray-700 dark:text-gray-300">
             <ReactMarkdown>{briefing.content}</ReactMarkdown>
           </div>
+          <div className="mt-3 flex justify-end border-t border-gray-100 pt-3 dark:border-gray-800">
+            {confirmDelete ? (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onDelete(briefing.id)}
+                  className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-medium text-white"
+                >
+                  Supprimer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                  className="rounded-lg px-2 py-1.5 text-xs text-gray-500"
+                >
+                  Annuler
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(true)}
+                className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-gray-400 hover:text-red-500 dark:text-gray-500"
+              >
+                <Trash2 size={14} />
+                Supprimer
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -307,6 +371,17 @@ export default function BriefingsPage() {
       setLoading(false)
     }
   }, [user, voyage, voyageLoading, loadBriefings])
+
+  // Delete briefing
+  const handleDelete = useCallback(async (id: string) => {
+    const supabase = createClient()
+    const { error } = await supabase.from('briefings').delete().eq('id', id)
+    if (error) {
+      console.error('Failed to delete briefing:', error.message)
+      return
+    }
+    setBriefings((prev) => prev.filter((b) => b.id !== id))
+  }, [])
 
   // Generate briefing
   const handleGenerate = async () => {
@@ -439,7 +514,7 @@ export default function BriefingsPage() {
             {/* Today's briefing */}
             {todayBriefing && (
               <div className="mb-6">
-                <TodayBriefing briefing={todayBriefing} />
+                <TodayBriefing briefing={todayBriefing} onDelete={handleDelete} />
               </div>
             )}
 
@@ -476,6 +551,7 @@ export default function BriefingsPage() {
                         briefing={briefing}
                         isExpanded={expandedIds.has(briefing.id)}
                         onToggle={() => toggleExpanded(briefing.id)}
+                        onDelete={handleDelete}
                       />
                     ))
                   )}
