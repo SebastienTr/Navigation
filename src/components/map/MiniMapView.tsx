@@ -72,15 +72,8 @@ export default function MiniMapView({ routeSteps, boatLat, boatLon }: MiniMapVie
       attributionControl={false}
       className="h-full w-full rounded-lg"
     >
-      <TileLayer
-        url="https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}"
-        maxZoom={13}
-      />
-      <TileLayer
-        url="https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}"
-        maxZoom={13}
-      />
-      <TileLayer url="https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png" opacity={0.85} />
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      <TileLayer url="https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png" opacity={0.8} />
 
       {segments.map((seg, i) => (
         <Polyline
