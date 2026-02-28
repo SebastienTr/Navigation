@@ -1,8 +1,9 @@
 -- ── Table reminders ───────────────────────────────────────────────────────
 -- Rappels programmés par l'IA ou par l'utilisateur.
 -- Évalués par le cron triggers toutes les 4h.
+-- IDEMPOTENT: safe to re-run (IF NOT EXISTS + DO $$ exception blocks)
 
-CREATE TABLE reminders (
+CREATE TABLE IF NOT EXISTS reminders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ DEFAULT now(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -17,28 +18,40 @@ CREATE TABLE reminders (
 );
 
 -- Index pour le cron : trouver les reminders à déclencher
-CREATE INDEX idx_reminders_pending ON reminders (remind_at)
+CREATE INDEX IF NOT EXISTS idx_reminders_pending ON reminders (remind_at)
   WHERE status = 'pending';
 
 -- Index pour les requêtes par voyage
-CREATE INDEX idx_reminders_voyage ON reminders (voyage_id, status);
+CREATE INDEX IF NOT EXISTS idx_reminders_voyage ON reminders (voyage_id, status);
 
 -- ── RLS ──────────────────────────────────────────────────────────────────────
 
 ALTER TABLE reminders ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view their own reminders"
-  ON reminders FOR SELECT
-  USING (auth.uid() = user_id);
+DO $$ BEGIN
+  CREATE POLICY "Users can view their own reminders"
+    ON reminders FOR SELECT
+    USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY "Users can insert their own reminders"
-  ON reminders FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+DO $$ BEGIN
+  CREATE POLICY "Users can insert their own reminders"
+    ON reminders FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY "Users can update their own reminders"
-  ON reminders FOR UPDATE
-  USING (auth.uid() = user_id);
+DO $$ BEGIN
+  CREATE POLICY "Users can update their own reminders"
+    ON reminders FOR UPDATE
+    USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY "Users can delete their own reminders"
-  ON reminders FOR DELETE
-  USING (auth.uid() = user_id);
+DO $$ BEGIN
+  CREATE POLICY "Users can delete their own reminders"
+    ON reminders FOR DELETE
+    USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;

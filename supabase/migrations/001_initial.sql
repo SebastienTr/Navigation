@@ -1,13 +1,14 @@
 -- Laurine Navigator MVP — Initial Schema (Multi-user)
 -- See PRD.md section 8 for full documentation
 -- All tables enforce Row Level Security (RLS) — each user sees only their own data.
+-- IDEMPOTENT: safe to re-run (IF NOT EXISTS + DO $$ exception blocks)
 
 -- ============================================================
 -- 1. Core user tables
 -- ============================================================
 
 -- Users (extended profile linked to Supabase Auth)
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY REFERENCES auth.users(id),
   email TEXT NOT NULL UNIQUE,
   name TEXT,
@@ -16,15 +17,27 @@ CREATE TABLE users (
 );
 
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can view own profile"
-  ON users FOR SELECT USING (auth.uid() = id);
-CREATE POLICY "Users can update own profile"
-  ON users FOR UPDATE USING (auth.uid() = id);
-CREATE POLICY "Users can insert own profile"
-  ON users FOR INSERT WITH CHECK (auth.uid() = id);
+
+DO $$ BEGIN
+  CREATE POLICY "Users can view own profile"
+    ON users FOR SELECT USING (auth.uid() = id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can update own profile"
+    ON users FOR UPDATE USING (auth.uid() = id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can insert own profile"
+    ON users FOR INSERT WITH CHECK (auth.uid() = id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Boats
-CREATE TABLE boats (
+CREATE TABLE IF NOT EXISTS boats (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
@@ -44,11 +57,15 @@ CREATE TABLE boats (
 );
 
 ALTER TABLE boats ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can CRUD own boats"
-  ON boats FOR ALL USING (auth.uid() = user_id);
+
+DO $$ BEGIN
+  CREATE POLICY "Users can CRUD own boats"
+    ON boats FOR ALL USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Navigation profiles (experience, crew mode, risk tolerance)
-CREATE TABLE nav_profiles (
+CREATE TABLE IF NOT EXISTS nav_profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   boat_id UUID REFERENCES boats(id) ON DELETE CASCADE,
@@ -62,11 +79,15 @@ CREATE TABLE nav_profiles (
 );
 
 ALTER TABLE nav_profiles ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can CRUD own nav profiles"
-  ON nav_profiles FOR ALL USING (auth.uid() = user_id);
+
+DO $$ BEGIN
+  CREATE POLICY "Users can CRUD own nav profiles"
+    ON nav_profiles FOR ALL USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Voyages
-CREATE TABLE voyages (
+CREATE TABLE IF NOT EXISTS voyages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   boat_id UUID NOT NULL REFERENCES boats(id) ON DELETE CASCADE,
@@ -78,15 +99,19 @@ CREATE TABLE voyages (
 );
 
 ALTER TABLE voyages ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can CRUD own voyages"
-  ON voyages FOR ALL USING (auth.uid() = user_id);
+
+DO $$ BEGIN
+  CREATE POLICY "Users can CRUD own voyages"
+    ON voyages FOR ALL USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ============================================================
 -- 2. Voyage data tables
 -- ============================================================
 
 -- Daily briefings
-CREATE TABLE briefings (
+CREATE TABLE IF NOT EXISTS briefings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ DEFAULT now(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -104,11 +129,15 @@ CREATE TABLE briefings (
 );
 
 ALTER TABLE briefings ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can CRUD own briefings"
-  ON briefings FOR ALL USING (auth.uid() = user_id);
+
+DO $$ BEGIN
+  CREATE POLICY "Users can CRUD own briefings"
+    ON briefings FOR ALL USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Logbook
-CREATE TABLE logs (
+CREATE TABLE IF NOT EXISTS logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ DEFAULT now(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -127,11 +156,15 @@ CREATE TABLE logs (
 );
 
 ALTER TABLE logs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can CRUD own logs"
-  ON logs FOR ALL USING (auth.uid() = user_id);
+
+DO $$ BEGIN
+  CREATE POLICY "Users can CRUD own logs"
+    ON logs FOR ALL USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Route steps (per voyage)
-CREATE TABLE route_steps (
+CREATE TABLE IF NOT EXISTS route_steps (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   voyage_id UUID NOT NULL REFERENCES voyages(id) ON DELETE CASCADE,
   order_num INTEGER NOT NULL,
@@ -150,15 +183,18 @@ CREATE TABLE route_steps (
 );
 
 ALTER TABLE route_steps ENABLE ROW LEVEL SECURITY;
--- Route steps are scoped via voyage ownership
-CREATE POLICY "Users can CRUD own route steps"
-  ON route_steps FOR ALL
-  USING (EXISTS (
-    SELECT 1 FROM voyages WHERE voyages.id = route_steps.voyage_id AND voyages.user_id = auth.uid()
-  ));
+
+DO $$ BEGIN
+  CREATE POLICY "Users can CRUD own route steps"
+    ON route_steps FOR ALL
+    USING (EXISTS (
+      SELECT 1 FROM voyages WHERE voyages.id = route_steps.voyage_id AND voyages.user_id = auth.uid()
+    ));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Checklist (per voyage)
-CREATE TABLE checklist (
+CREATE TABLE IF NOT EXISTS checklist (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   voyage_id UUID NOT NULL REFERENCES voyages(id) ON DELETE CASCADE,
   task TEXT NOT NULL,
@@ -170,14 +206,18 @@ CREATE TABLE checklist (
 );
 
 ALTER TABLE checklist ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can CRUD own checklist"
-  ON checklist FOR ALL
-  USING (EXISTS (
-    SELECT 1 FROM voyages WHERE voyages.id = checklist.voyage_id AND voyages.user_id = auth.uid()
-  ));
+
+DO $$ BEGIN
+  CREATE POLICY "Users can CRUD own checklist"
+    ON checklist FOR ALL
+    USING (EXISTS (
+      SELECT 1 FROM voyages WHERE voyages.id = checklist.voyage_id AND voyages.user_id = auth.uid()
+    ));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Chat history
-CREATE TABLE chat_history (
+CREATE TABLE IF NOT EXISTS chat_history (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ DEFAULT now(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -188,11 +228,15 @@ CREATE TABLE chat_history (
 );
 
 ALTER TABLE chat_history ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can CRUD own chat history"
-  ON chat_history FOR ALL USING (auth.uid() = user_id);
+
+DO $$ BEGIN
+  CREATE POLICY "Users can CRUD own chat history"
+    ON chat_history FOR ALL USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Boat status (one per voyage, continuously updated)
-CREATE TABLE boat_status (
+CREATE TABLE IF NOT EXISTS boat_status (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   voyage_id UUID NOT NULL UNIQUE REFERENCES voyages(id) ON DELETE CASCADE,
   updated_at TIMESTAMPTZ DEFAULT now(),
@@ -209,30 +253,34 @@ CREATE TABLE boat_status (
 );
 
 ALTER TABLE boat_status ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can CRUD own boat status"
-  ON boat_status FOR ALL
-  USING (EXISTS (
-    SELECT 1 FROM voyages WHERE voyages.id = boat_status.voyage_id AND voyages.user_id = auth.uid()
-  ));
+
+DO $$ BEGIN
+  CREATE POLICY "Users can CRUD own boat status"
+    ON boat_status FOR ALL
+    USING (EXISTS (
+      SELECT 1 FROM voyages WHERE voyages.id = boat_status.voyage_id AND voyages.user_id = auth.uid()
+    ));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ============================================================
 -- 3. Indexes
 -- ============================================================
 
-CREATE INDEX idx_boats_user ON boats(user_id);
-CREATE INDEX idx_nav_profiles_user ON nav_profiles(user_id);
-CREATE INDEX idx_voyages_user ON voyages(user_id);
-CREATE INDEX idx_voyages_status ON voyages(status);
-CREATE INDEX idx_briefings_user_voyage ON briefings(user_id, voyage_id);
-CREATE INDEX idx_briefings_date ON briefings(date DESC);
-CREATE INDEX idx_logs_user_voyage ON logs(user_id, voyage_id);
-CREATE INDEX idx_logs_created ON logs(created_at DESC);
-CREATE INDEX idx_route_steps_voyage ON route_steps(voyage_id);
-CREATE INDEX idx_route_steps_order ON route_steps(order_num);
-CREATE INDEX idx_checklist_voyage ON checklist(voyage_id);
-CREATE INDEX idx_checklist_status ON checklist(status);
-CREATE INDEX idx_chat_history_user_voyage ON chat_history(user_id, voyage_id);
-CREATE INDEX idx_chat_history_created ON chat_history(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_boats_user ON boats(user_id);
+CREATE INDEX IF NOT EXISTS idx_nav_profiles_user ON nav_profiles(user_id);
+CREATE INDEX IF NOT EXISTS idx_voyages_user ON voyages(user_id);
+CREATE INDEX IF NOT EXISTS idx_voyages_status ON voyages(status);
+CREATE INDEX IF NOT EXISTS idx_briefings_user_voyage ON briefings(user_id, voyage_id);
+CREATE INDEX IF NOT EXISTS idx_briefings_date ON briefings(date DESC);
+CREATE INDEX IF NOT EXISTS idx_logs_user_voyage ON logs(user_id, voyage_id);
+CREATE INDEX IF NOT EXISTS idx_logs_created ON logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_route_steps_voyage ON route_steps(voyage_id);
+CREATE INDEX IF NOT EXISTS idx_route_steps_order ON route_steps(order_num);
+CREATE INDEX IF NOT EXISTS idx_checklist_voyage ON checklist(voyage_id);
+CREATE INDEX IF NOT EXISTS idx_checklist_status ON checklist(status);
+CREATE INDEX IF NOT EXISTS idx_chat_history_user_voyage ON chat_history(user_id, voyage_id);
+CREATE INDEX IF NOT EXISTS idx_chat_history_created ON chat_history(created_at DESC);
 
 -- ============================================================
 -- 4. Helper function: auto-create user profile on sign-up
@@ -247,6 +295,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Drop and recreate trigger to be idempotent
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
