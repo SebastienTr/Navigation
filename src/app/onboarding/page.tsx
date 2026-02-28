@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Ship,
@@ -277,12 +277,16 @@ function StepVoyage({
   boatData,
   profileData,
   onRouteConfirmed,
+  onLoadingChange,
+  abortRef,
 }: {
   data: VoyageData
   onChange: (data: VoyageData) => void
   boatData: BoatData
   profileData: ProfileData
   onRouteConfirmed: (route: RouteOption | null) => void
+  onLoadingChange: (loading: boolean) => void
+  abortRef: React.MutableRefObject<AbortController | null>
 }) {
   const update = (field: keyof VoyageData, value: string) => {
     onChange({ ...data, [field]: value })
@@ -350,6 +354,8 @@ function StepVoyage({
           max_continuous_hours: profileData.max_continuous_hours ? parseFloat(profileData.max_continuous_hours) : null,
         }}
         onRouteConfirmed={onRouteConfirmed}
+        onLoadingChange={onLoadingChange}
+        abortRef={abortRef}
       />
     </div>
   )
@@ -676,6 +682,8 @@ export default function OnboardingPage() {
   })
 
   const [confirmedRoute, setConfirmedRoute] = useState<RouteOption | null>(null)
+  const [isGeneratingRoute, setIsGeneratingRoute] = useState(false)
+  const routeAbortRef = useRef<AbortController | null>(null)
 
   const canProceed = useCallback(() => {
     switch (currentStep) {
@@ -684,13 +692,13 @@ export default function OnboardingPage() {
       case 1:
         return true // Profile fields are optional
       case 2:
-        return true // Can skip voyage
+        return !isGeneratingRoute // Block "Suivant" while generating
       case 3:
         return true
       default:
         return false
     }
-  }, [currentStep, boatData.name])
+  }, [currentStep, boatData.name, isGeneratingRoute])
 
   const handleNext = () => {
     if (currentStep < STEPS.length - 1) {
@@ -705,6 +713,9 @@ export default function OnboardingPage() {
   }
 
   const handleSkipVoyage = () => {
+    // Abort any in-progress route generation
+    routeAbortRef.current?.abort()
+    setIsGeneratingRoute(false)
     setSkippedVoyage(true)
     setCurrentStep(3)
   }
@@ -931,6 +942,8 @@ export default function OnboardingPage() {
               boatData={boatData}
               profileData={profileData}
               onRouteConfirmed={setConfirmedRoute}
+              onLoadingChange={setIsGeneratingRoute}
+              abortRef={routeAbortRef}
             />
           )}
           {currentStep === 3 && (

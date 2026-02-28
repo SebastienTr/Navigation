@@ -1,4 +1,4 @@
-# Laurine Navigator — Build Plan
+# Bosco — Build Plan
 
 Sequential build steps for Claude Code. Each step is self-contained and testable.
 
@@ -20,8 +20,8 @@ Sequential build steps for Claude Code. Each step is self-contained and testable
 
 ### Step 1.1 — Project Scaffolding
 ```bash
-npx create-next-app@latest laurine-navigator --typescript --tailwind --app --src-dir --eslint
-cd laurine-navigator
+npx create-next-app@latest bosco --typescript --tailwind --app --src-dir --eslint
+cd bosco
 ```
 
 Install dependencies:

@@ -1,8 +1,8 @@
-# Laurine Navigator — Claude Code Project Context
+# Bosco — Claude Code Project Context
 
 ## What is this project?
 
-**Laurine Navigator** is an AI-powered sailing first mate — a multi-user PWA that helps sailors make daily go/no-go decisions and navigate safely. Built initially for Sébastien's solo convoy from Audierne (Finistère, France) to Nice, but designed for any sailor from day 1.
+**Bosco** is an AI-powered sailing first mate — a multi-user PWA that helps sailors make daily go/no-go decisions and navigate safely. Built initially for Sébastien's solo convoy from Audierne (Finistère, France) to Nice, but designed for any sailor from day 1.
 
 It's NOT just a dashboard. It's a **proactive copilot** that monitors, anticipates, and talks to the captain when something needs attention.
 

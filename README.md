@@ -1,4 +1,4 @@
-# Laurine Navigator
+# Bosco
 
 AI-powered sailing first mate — a multi-user PWA that helps sailors make daily go/no-go decisions and navigate safely.
 

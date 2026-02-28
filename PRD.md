@@ -1,4 +1,4 @@
-# Laurine Navigator — Product Requirements Document (MVP)
+# Bosco — Product Requirements Document (MVP)
 
 **Version** : 1.2
 **Date** : February 27, 2026
@@ -21,9 +21,9 @@ Centralization attempts via Notion or generic apps hit three limits: no integrat
 
 ### The solution
 
-**Laurine Navigator** is an **AI first mate** — not just a navigation tool, but a proactive copilot that monitors, anticipates, and speaks to the captain when relevant. It centralizes weather, tides, currents, map, logbook, checklist, and route tracking in a single mobile-optimized interface. The AI produces an operational verdict each morning (GO / STANDBY / NO-GO) with an executable plan, but also intervenes during the day if the situation changes. The skipper can query his mate at any time via contextual chat.
+**Bosco** is an **AI first mate** — not just a navigation tool, but a proactive copilot that monitors, anticipates, and speaks to the captain when relevant. It centralizes weather, tides, currents, map, logbook, checklist, and route tracking in a single mobile-optimized interface. The AI produces an operational verdict each morning (GO / STANDBY / NO-GO) with an executable plan, but also intervenes during the day if the situation changes. The skipper can query his mate at any time via contextual chat.
 
-> **Server-side AI (MVP)** : Laurine Navigator uses a shared Claude API key (server-side). Each skipper brings their own boat, profile, and voyage. Free during beta.
+> **Server-side AI (MVP)** : Bosco uses a shared Claude API key (server-side). Each skipper brings their own boat, profile, and voyage. Free during beta.
 >
 > **Note V1 → V1.5** : In V1.5, we plan to offer BYOAI as an option (bring your own API key) and freemium tiers. The MVP architecture supports this path. See [VISION.md](./VISION.md).
 

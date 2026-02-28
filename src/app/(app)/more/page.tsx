@@ -71,7 +71,7 @@ export default function MorePage() {
       </div>
 
       <p className="mt-8 text-center text-xs text-gray-400 dark:text-gray-600">
-        Laurine Navigator v0.1.0
+        Bosco v0.1.0
       </p>
     </div>
   )

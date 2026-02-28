@@ -449,6 +449,15 @@ ${params.profile.riskTolerance ? `Tolérance au risque: ${params.profile.riskTol
 ${params.profile.nightSailing ? `Navigation de nuit: ${params.profile.nightSailing}` : ''}
 ${params.profile.maxContinuousHours ? `Heures continues max: ${params.profile.maxContinuousHours}h` : ''}
 
+## RÈGLES IMPÉRATIVES
+- Les routes proposées doivent être GÉOGRAPHIQUEMENT COHÉRENTES et PHYSIQUEMENT NAVIGABLES
+- Chaque étape successive DOIT être adjacente à la précédente (pas de saut géographique)
+- On NE PEUT PAS aller de l'Atlantique à la Méditerranée par la mer sans passer par le détroit de Gibraltar (>2000 NM). Les seuls passages intérieurs France sont : Canal de la Garonne + Canal du Midi (Bordeaux → Sète), ou remontée du Rhône
+- Les coordonnées GPS de chaque étape DOIVENT correspondre aux vrais ports/écluses/points de passage
+- Les distances entre étapes successives doivent être cohérentes avec les coordonnées (pas de 500 NM entre deux ports à 20 NM l'un de l'autre)
+- Si le bateau a un tirant d'air > 6m, signaler en warning que les canaux du Midi / Garonne ne sont PAS praticables (ponts fixes ~3.5m). Il faudra alors passer par Gibraltar ou démâter
+- Si le tirant d'eau > 1.8m, signaler les limitations pour les canaux intérieurs
+
 ## CONTRAINTES À PRENDRE EN COMPTE
 - Tirant d'eau du bateau pour l'accès aux ports et canaux
 - Tirant d'air pour le passage sous les ponts (canaux)

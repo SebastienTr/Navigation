@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import dynamic from 'next/dynamic'
 import {
   Sparkles,
   Loader2,
   CheckCircle,
   AlertTriangle,
-  Map,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -63,7 +63,20 @@ interface AIRouteWizardProps {
   boat: BoatSpec
   profile: ProfileSpec
   onRouteConfirmed: (route: RouteOption | null) => void
+  onLoadingChange?: (loading: boolean) => void
+  abortRef?: React.MutableRefObject<AbortController | null>
 }
+
+// ── Dynamic import for Leaflet map (no SSR) ────────────────────────────
+
+const RoutePreviewMap = dynamic(() => import('./RoutePreviewMap'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-48 items-center justify-center rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800">
+      <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+    </div>
+  ),
+})
 
 // ── Component ──────────────────────────────────────────────────────────
 
@@ -73,6 +86,8 @@ export default function AIRouteWizard({
   boat,
   profile,
   onRouteConfirmed,
+  onLoadingChange,
+  abortRef,
 }: AIRouteWizardProps) {
   const [routeOptions, setRouteOptions] = useState<RouteOption[]>([])
   const [selectedRoute, setSelectedRoute] = useState<string | null>(null)
@@ -81,18 +96,50 @@ export default function AIRouteWizard({
   const [showCustom, setShowCustom] = useState(false)
   const [customDescription, setCustomDescription] = useState('')
   const [confirmed, setConfirmed] = useState(false)
+  const [streamingText, setStreamingText] = useState('')
+
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const streamBoxRef = useRef<HTMLPreElement>(null)
+
+  // Expose abort controller to parent
+  useEffect(() => {
+    if (abortRef) {
+      abortRef.current = abortControllerRef.current
+    }
+  })
+
+  // Auto-scroll the streaming text box
+  useEffect(() => {
+    if (streamBoxRef.current) {
+      streamBoxRef.current.scrollTop = streamBoxRef.current.scrollHeight
+    }
+  }, [streamingText])
+
+  const setLoading = useCallback((loading: boolean) => {
+    setLoadingRoutes(loading)
+    onLoadingChange?.(loading)
+  }, [onLoadingChange])
 
   const generateRoutes = async (customText?: string) => {
-    setLoadingRoutes(true)
+    // Abort any previous request
+    abortControllerRef.current?.abort()
+
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+    if (abortRef) abortRef.current = controller
+
+    setLoading(true)
     setRouteError(null)
     setRouteOptions([])
     setSelectedRoute(null)
     setConfirmed(false)
+    setStreamingText('')
 
     try {
       const res = await fetch('/api/ai/route', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           departure_port: departurePort,
           arrival_port: arrivalPort,
@@ -121,23 +168,71 @@ export default function AIRouteWizard({
         throw new Error('Erreur lors de la génération des routes')
       }
 
-      const result = await res.json()
-      setRouteOptions(result.options || [])
-    } catch {
+      const reader = res.body?.getReader()
+      if (!reader) throw new Error('Pas de stream disponible')
+
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+
+        // Parse SSE events from buffer
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || '' // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const jsonStr = line.slice(6)
+          if (!jsonStr) continue
+
+          try {
+            const event = JSON.parse(jsonStr)
+
+            if (event.type === 'text_delta') {
+              setStreamingText((prev) => prev + event.text)
+            } else if (event.type === 'done') {
+              setRouteOptions(event.options || [])
+              setStreamingText('')
+            } else if (event.type === 'error') {
+              throw new Error(event.error)
+            }
+          } catch (parseErr) {
+            // If it's a rethrown error from event.type === 'error', propagate
+            if (parseErr instanceof Error && parseErr.message !== 'Unexpected end of JSON input') {
+              throw parseErr
+            }
+          }
+        }
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        // Request was cancelled (e.g. user clicked "Passer")
+        return
+      }
       setRouteError(
         'Impossible de générer les itinéraires. Vérifiez votre connexion et réessayez.'
       )
     } finally {
-      setLoadingRoutes(false)
+      setLoading(false)
+      abortControllerRef.current = null
+      if (abortRef) abortRef.current = null
     }
   }
 
   const canGenerate = departurePort.trim() && arrivalPort.trim()
 
+  const selectedRouteData = selectedRoute
+    ? routeOptions.find((o) => o.id === selectedRoute) ?? null
+    : null
+
   return (
     <div className="space-y-3">
       {/* Generate button */}
-      {!loadingRoutes && routeOptions.length === 0 && !confirmed && (
+      {!loadingRoutes && routeOptions.length === 0 && !confirmed && !streamingText && (
         <button
           type="button"
           disabled={!canGenerate || loadingRoutes}
@@ -149,13 +244,19 @@ export default function AIRouteWizard({
         </button>
       )}
 
-      {/* Loading state */}
-      {loadingRoutes && (
-        <div className="flex flex-col items-center justify-center gap-3 py-10">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600 dark:text-blue-400" />
-          <p className="text-center text-sm text-slate-500 dark:text-slate-400">
-            L&apos;IA analyse les routes possibles...
-          </p>
+      {/* Streaming text display */}
+      {(loadingRoutes || streamingText) && routeOptions.length === 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+            <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+            <span>L&apos;IA génère les itinéraires...</span>
+          </div>
+          <pre
+            ref={streamBoxRef}
+            className="max-h-64 overflow-y-auto rounded-xl bg-slate-900 p-4 text-xs leading-relaxed text-green-400 font-mono whitespace-pre-wrap break-words"
+          >
+            {streamingText || '...'}
+          </pre>
         </div>
       )}
 
@@ -311,14 +412,9 @@ export default function AIRouteWizard({
             </div>
           )}
 
-          {/* Map preview placeholder */}
-          {selectedRoute && (
-            <div className="flex h-48 items-center justify-center rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800">
-              <div className="text-center">
-                <Map className="mx-auto mb-2 h-8 w-8 text-slate-400" />
-                <p className="text-sm text-slate-400">Aperçu de la carte</p>
-              </div>
-            </div>
+          {/* Map preview with Leaflet */}
+          {selectedRouteData && selectedRouteData.steps.length > 0 && (
+            <RoutePreviewMap steps={selectedRouteData.steps} />
           )}
 
           {/* Confirm button */}
@@ -341,15 +437,20 @@ export default function AIRouteWizard({
 
       {/* Confirmed state */}
       {confirmed && selectedRoute && (
-        <div className="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
-          <CheckCircle className="h-5 w-5 shrink-0 text-green-600 dark:text-green-400" />
-          <p className="text-sm text-green-700 dark:text-green-400">
-            Itinéraire validé :{' '}
-            <span className="font-semibold">
-              {routeOptions.find((o) => o.id === selectedRoute)?.name}
-            </span>
-          </p>
-        </div>
+        <>
+          <div className="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
+            <CheckCircle className="h-5 w-5 shrink-0 text-green-600 dark:text-green-400" />
+            <p className="text-sm text-green-700 dark:text-green-400">
+              Itinéraire validé :{' '}
+              <span className="font-semibold">
+                {routeOptions.find((o) => o.id === selectedRoute)?.name}
+              </span>
+            </p>
+          </div>
+          {selectedRouteData && selectedRouteData.steps.length > 0 && (
+            <RoutePreviewMap steps={selectedRouteData.steps} />
+          )}
+        </>
       )}
     </div>
   )

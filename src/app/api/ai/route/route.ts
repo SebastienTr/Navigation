@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
-import { callClaude, MODEL_SONNET } from '@/lib/ai/proxy'
+import { MODEL_SONNET } from '@/lib/ai/proxy'
 import { buildRouteSystemPrompt } from '@/lib/ai/prompts'
 import { getUserBoats, getNavProfiles } from '@/lib/supabase/queries'
-import type { RouteProposal } from '@/types'
 
 interface BoatPayload {
   name?: string
@@ -83,6 +83,17 @@ function extractJSON(text: string): { routes: RawRouteProposal[] } {
   throw new Error('Aucun JSON valide trouvé dans la réponse de Claude')
 }
 
+// ── Singleton Anthropic client ────────────────────────────────────────────
+let clientInstance: Anthropic | null = null
+function getClient(): Anthropic {
+  if (!clientInstance) {
+    const apiKey = process.env.ANTHROPIC_API_KEY
+    if (!apiKey) throw new Error('ANTHROPIC_API_KEY manquant')
+    clientInstance = new Anthropic({ apiKey })
+  }
+  return clientInstance
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -137,7 +148,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (body.boat?.name) {
-      // Use data from request body (onboarding flow)
       boatInfo = {
         name: body.boat.name || 'Bateau',
         type: body.boat.type || null,
@@ -156,7 +166,6 @@ export async function POST(request: NextRequest) {
         maxContinuousHours: body.profile?.max_continuous_hours ?? null,
       }
     } else {
-      // Fallback: read from database
       const [boats, profiles] = await Promise.all([
         getUserBoats(supabase, user.id),
         getNavProfiles(supabase, user.id),
@@ -200,46 +209,80 @@ export async function POST(request: NextRequest) {
       ? `Génère un itinéraire personnalisé de ${departure} à ${arrival} selon cette description: "${description}". Réponds en JSON.`
       : `Propose 2 à 3 itinéraires pour un convoyage de ${departure} à ${arrival}. Réponds en JSON.`
 
-    const response = await callClaude({
-      systemPrompt,
-      messages: [{ role: 'user', content: userMessage }],
-      model: MODEL_SONNET,
-      maxTokens: 16384,
+    // Stream via SSE
+    const encoder = new TextEncoder()
+    const client = getClient()
+
+    const sseStream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        let accumulated = ''
+        try {
+          const stream = client.messages.stream({
+            model: MODEL_SONNET,
+            max_tokens: 16384,
+            system: systemPrompt,
+            messages: [{ role: 'user', content: userMessage }],
+          })
+
+          stream.on('text', (text) => {
+            accumulated += text
+            const sseEvent = `data: ${JSON.stringify({ type: 'text_delta', text })}\n\n`
+            controller.enqueue(encoder.encode(sseEvent))
+          })
+
+          await stream.finalMessage()
+
+          // Parse accumulated JSON and send done event with routes
+          const parsed = extractJSON(accumulated)
+
+          if (!parsed.routes || parsed.routes.length === 0) {
+            throw new Error('Claude n\'a proposé aucun itinéraire')
+          }
+
+          const options = parsed.routes.map((route, index) => ({
+            id: `route-${index}`,
+            name: route.name,
+            summary: route.summary,
+            distance: `${route.total_distance_nm ?? 0} NM / ${route.total_distance_km ?? 0} km`,
+            estimated_days: `~${route.estimated_days ?? '?'} jours`,
+            pros: route.pros || [],
+            cons: route.cons || [],
+            warnings: route.warnings || [],
+            steps: (route.steps || []).map((s) => ({
+              order_num: s.order_num,
+              name: s.name,
+              from_port: s.from_port,
+              to_port: s.to_port,
+              distance_nm: s.distance_nm,
+              distance_km: s.distance_km,
+              phase: s.phase,
+              notes: s.notes,
+              from_lat: s.from_lat,
+              from_lon: s.from_lon,
+              to_lat: s.to_lat,
+              to_lon: s.to_lon,
+            })),
+          }))
+
+          const doneEvent = `data: ${JSON.stringify({ type: 'done', routes: parsed.routes, options })}\n\n`
+          controller.enqueue(encoder.encode(doneEvent))
+          controller.close()
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Erreur inconnue'
+          const errorEvent = `data: ${JSON.stringify({ type: 'error', error: message })}\n\n`
+          controller.enqueue(encoder.encode(errorEvent))
+          controller.close()
+        }
+      },
     })
 
-    const parsed = extractJSON(response)
-
-    if (!parsed.routes || parsed.routes.length === 0) {
-      throw new Error('Claude n\'a proposé aucun itinéraire')
-    }
-
-    // Transform to client format
-    const options = parsed.routes.map((route, index) => ({
-      id: `route-${index}`,
-      name: route.name,
-      summary: route.summary,
-      distance: `${route.total_distance_nm ?? 0} NM / ${route.total_distance_km ?? 0} km`,
-      estimated_days: `~${route.estimated_days ?? '?'} jours`,
-      pros: route.pros || [],
-      cons: route.cons || [],
-      warnings: route.warnings || [],
-      steps: (route.steps || []).map((s) => ({
-        order_num: s.order_num,
-        name: s.name,
-        from_port: s.from_port,
-        to_port: s.to_port,
-        distance_nm: s.distance_nm,
-        distance_km: s.distance_km,
-        phase: s.phase,
-        notes: s.notes,
-        from_lat: s.from_lat,
-        from_lon: s.from_lon,
-        to_lat: s.to_lat,
-        to_lon: s.to_lon,
-      })),
-    }))
-
-    return NextResponse.json({ routes: parsed.routes, options })
+    return new Response(sseStream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      },
+    })
   } catch (error) {
     console.error('AI route generation error:', error)
 

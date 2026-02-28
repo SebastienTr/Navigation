@@ -1,4 +1,4 @@
--- Laurine Navigator — Seed Data
+-- Bosco — Seed Data
 -- This file contains TEMPLATE data that the onboarding wizard can use.
 -- In the multi-user architecture, actual data is created per-user during onboarding.
 -- This seed is useful for development/testing with a known user.

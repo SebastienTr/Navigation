@@ -1,4 +1,4 @@
--- Laurine Navigator MVP — Initial Schema (Multi-user)
+-- Bosco MVP — Initial Schema (Multi-user)
 -- See PRD.md section 8 for full documentation
 -- All tables enforce Row Level Security (RLS) — each user sees only their own data.
 -- IDEMPOTENT: safe to re-run (IF NOT EXISTS + DO $$ exception blocks)

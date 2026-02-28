@@ -3,7 +3,7 @@
 **Version** : 0.2
 **Date** : February 27, 2026
 **Founder** : Sébastien Treille
-**Status** : Vision draft — built from MVP "Laurine Navigator"
+**Status** : Vision draft — built from MVP "Bosco"
 
 ---
 
@@ -616,7 +616,7 @@ This isn't complex ML — it's simple Bayesian threshold adjustment stored in `n
 
 ### V1 — MVP "My Personal First Mate" (March 2026)
 
-Scope: current MVP PRD ("Laurine Navigator"). Sébastien's personal use. First proactive triggers (morning briefing, midday weather check, log reminder). Contextual chat. BYOAI with Sébastien's Claude key.
+Scope: current MVP PRD ("Bosco"). Sébastien's personal use. First proactive triggers (morning briefing, midday weather check, log reminder). Contextual chat. BYOAI with Sébastien's Claude key.
 
 ### V1.5 — "First Mate for Everyone" (June 2026)
 

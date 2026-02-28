@@ -4,7 +4,7 @@ Copy-paste this entire prompt into Claude Code to build the full project.
 
 ---
 
-Build the complete Laurine Navigator app from scratch. This is an AI-powered sailing first mate — a multi-user PWA built with Next.js 15 + Supabase + Claude API.
+Build the complete Bosco app from scratch. This is an AI-powered sailing first mate — a multi-user PWA built with Next.js 15 + Supabase + Claude API.
 
 ## Context files (READ THESE FIRST)
 

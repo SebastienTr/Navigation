@@ -22,7 +22,7 @@ function configureVapid() {
   if (!publicKey || !privateKey) return false
 
   webpush.setVapidDetails(
-    'mailto:contact@laurine-navigator.com',
+    'mailto:contact@bosco-nav.com',
     publicKey,
     privateKey
   )

@@ -3,13 +3,13 @@ import { Providers } from "@/components/Providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Laurine Navigator",
+  title: "Bosco",
   description: "Votre premier second — copilote IA pour la navigation",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Laurine Nav",
+    title: "Bosco",
   },
 };
 

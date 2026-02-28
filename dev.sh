@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ══════════════════════════════════════════════════════════════════════
-# Laurine Navigator — Script de développement
+# Bosco — Script de développement
 # ══════════════════════════════════════════════════════════════════════
 
 # ── Couleurs ─────────────────────────────────────────────────────────
@@ -30,7 +30,7 @@ header()  { echo -e "\n${BOLD}${CYAN}── $1 ──${NC}"; }
 usage() {
   cat <<EOF
 
-${BOLD}${CYAN}⚓ Laurine Navigator — Dev Script${NC}
+${BOLD}${CYAN}⚓ Bosco — Dev Script${NC}
 
 ${BOLD}Usage:${NC}  ./dev.sh [options]
 

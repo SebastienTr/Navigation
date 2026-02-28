@@ -1,4 +1,4 @@
-// ── Types partagés pour Laurine Navigator ──────────────────────────────────
+// ── Types partagés pour Bosco ──────────────────────────────────
 
 import type { Database } from '@/lib/supabase/types'
 

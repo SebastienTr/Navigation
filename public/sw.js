@@ -1,4 +1,4 @@
-// Laurine Navigator — Service Worker
+// Bosco — Service Worker
 // Offline-first strategy: cache app shell + API responses
 
 const CACHE_NAME = 'laurine-nav-v1';
@@ -87,7 +87,7 @@ self.addEventListener('fetch', (event) => {
 // Push notifications
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
-  const title = data.title || 'Laurine Navigator';
+  const title = data.title || 'Bosco';
   const options = {
     body: data.body || '',
     icon: '/icons/icon-192.png',
