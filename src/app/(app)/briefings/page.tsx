@@ -135,7 +135,7 @@ function TodayBriefing({ briefing }: TodayBriefingProps) {
             Briefing du jour
           </p>
           <p className="text-xs text-gray-400 dark:text-gray-500">
-            {formatDate(briefing.date)}
+            {formatDate(briefing.date)} à {new Date(briefing.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
         {briefing.verdict && <VerdictBadge verdict={briefing.verdict} large />}
@@ -211,7 +211,7 @@ function BriefingCard({ briefing, isExpanded, onToggle }: BriefingCardProps) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-              {formatShortDate(briefing.date)}
+              {formatShortDate(briefing.date)} · {new Date(briefing.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
             </span>
             {briefing.verdict && <VerdictBadge verdict={briefing.verdict} />}
           </div>
