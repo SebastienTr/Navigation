@@ -2,7 +2,7 @@
 
 Sequential build steps for Claude Code. Each step is self-contained and testable.
 
-## Progress Summary (updated 2026-02-27)
+## Progress Summary (updated 2026-02-28)
 
 | Phase | Status |
 |-------|--------|
@@ -11,8 +11,57 @@ Sequential build steps for Claude Code. Each step is self-contained and testable
 | Phase 2: Backend Core | DONE |
 | Phase 3: Frontend Core | DONE |
 | Phase 4: AI Features | DONE |
-| Phase 5: Settings & Polish | PARTIAL (settings done, push/offline pending) |
+| Phase 5: Settings & Polish | MOSTLY DONE (push partial, offline partial) |
+| Phase 5.5: Post-MVP Enhancements | DONE (see below) |
 | Phase 6: Test & Deploy | NOT STARTED |
+
+### Phase 5.5 — Post-MVP Enhancements (added after initial plan)
+
+Features built after the original build plan was completed:
+
+**Agentic AI system** — Chat upgraded from simple Q&A to agentic with native `tool_use`:
+- 7 tools defined in `src/lib/ai/tools.ts` (create_log_entry, manage_checklist, update_boat_status, manage_route, create_reminder, get_weather, update_memory)
+- Tool execution in `src/lib/ai/tool-handlers.ts` (743 lines)
+- Max 5 agentic turns per chat message, SSE streaming with tool callbacks
+
+**AI Memory system** — Persistent memory across sessions:
+- `ai_memory` + `ai_memory_versions` tables (migration 006)
+- `update_memory` tool for in-chat memory updates
+- `/api/ai/memory-extract` cron endpoint for background extraction
+- Memory context injected into briefing + chat prompts
+
+**Route editing** — Full CRUD on route steps:
+- `manage_route` tool replaced `update_route_progress` (add, edit, delete, reorder steps)
+- Route page UI with editing capabilities
+
+**Theme system** — Dark/light/system toggle:
+- `src/lib/theme.tsx` (ThemeProvider + useTheme hook)
+- Persisted to localStorage, default dark
+- Map uses CartoDB Dark Matter tiles in dark mode
+
+**Briefing improvements:**
+- Markdown rendering (react-markdown + custom prose CSS)
+- Generation time display (HH:MM)
+- Delete with confirmation
+- History shows all briefings (not just today's)
+
+**Reminders page** — `src/app/(app)/reminders/page.tsx` (315 lines)
+
+**Push notifications** — `/api/push/route.ts` + `usePushNotifications.ts`
+
+**DB migrations** — 5 additional migrations (002-006):
+- 002: reminders table
+- 003: push_subscriptions table
+- 004: photo_urls column on logs
+- 005: relax phase check constraint on route_steps
+- 006: ai_memory + ai_memory_versions tables
+
+**Auto-migration** — `src/lib/db/migrate.ts` + `src/instrumentation.ts` runs migrations at server startup
+
+**Shared components extracted:**
+- `AIRouteWizard.tsx` (690 lines) — reused in onboarding + settings
+- `RoutePreviewMap.tsx` (237 lines) — route preview with waypoints
+- `MiniMapView.tsx` (104 lines) — mini map for dashboard
 
 ---
 
@@ -349,10 +398,10 @@ Note: UTC times (4am UTC = 5am France winter, 6am summer). Adjust for season.
 
 ---
 
-## Phase 5: Settings & Polish (Day 7-8) — PARTIAL
+## Phase 5: Settings & Polish (Day 7-8) — MOSTLY DONE
 
 ### Step 5.1 — Settings Page — DONE
-`src/app/(app)/settings/page.tsx` (1,232 lines)
+`src/app/(app)/settings/page.tsx` (1,517 lines)
 
 - **My Boats** section:
   - List of boats with edit button
@@ -370,35 +419,34 @@ Note: UTC times (4am UTC = 5am France winter, 6am summer). Adjust for season.
   - Logout button
   - Delete account (with confirmation)
 
-### Step 5.2 — Push Notifications — PARTIAL
-- `src/lib/push.ts` — Web Push setup:
-  - Generate VAPID keys (one-time setup)
-  - Subscribe to push in browser (on first app launch + consent)
-  - `sendPush(title, body, userId, voyageId)` from server
-  - Store subscriptions in Supabase table
-- **Done**: push.ts exists with subscription logic
-- **TODO**: Wire push notifications to briefing generation + trigger engine
-- **TODO**: Permission request on first app launch
+### Step 5.2 — Push Notifications — MOSTLY DONE
+- `src/lib/push.ts` — Web Push setup (84 lines)
+- `src/hooks/usePushNotifications.ts` — Push subscription hook (102 lines)
+- `src/app/api/push/route.ts` — Push subscription endpoint (100 lines)
+- `supabase/migrations/003_push_subscriptions.sql` — Subscription storage table
+- **Done**: Full push subscription flow, API endpoint, Supabase storage
+- **TODO**: Wire push notifications to briefing generation + trigger engine output
 
 ### Step 5.3 — Offline Support — PARTIAL
-- **Done**: Basic Service Worker (`public/sw.js`, 112 lines) caches app shell and static assets
+- **Done**: Basic Service Worker (`public/sw.js`) caches app shell and static assets
+- **Done**: `src/lib/offline-queue.ts` (71 lines) — offline log queue implementation
+- **Done**: `src/hooks/useOnlineStatus.ts` — online/offline detection hook
 - **TODO**: Cache latest briefing per voyage
 - **TODO**: Cache map tiles for current zone + 100 NM buffer
-- **TODO**: Log queue (IndexedDB when offline → sync on reconnect)
-- **TODO**: Offline indicator badge in UI
 - **TODO**: "Last updated X ago" timestamps everywhere
 
-### Step 5.4 — UI Polish — PARTIAL
+### Step 5.4 — UI Polish — DONE
 - **Done**: Empty states with helpful messages (all pages)
 - **Done**: PWA meta tags (theme-color, apple-touch-icon, viewport-fit cover, safe area padding)
-- **Done**: Dark mode support (Tailwind `dark:` classes)
+- **Done**: Dark mode / light mode / system toggle (ThemeProvider + useTheme hook)
+- **Done**: Dark mode map (CartoDB Dark Matter base tiles)
 - **Done**: French language for all user-facing text
 - **Done**: Active voyage context on all screens
-- **TODO**: Loading skeletons for data-dependent components
-- **TODO**: Pull-to-refresh on Dashboard
-- **TODO**: Haptic feedback on verdict tap
+- **Done**: Briefing markdown rendering (react-markdown + custom prose CSS)
+- **Done**: Loading skeleton component (`Skeleton.tsx`)
+- **Done**: Card component auto-detects custom backgrounds
 
-**Checkpoint:** Settings done. Push and offline support partially implemented. UI polish ongoing.
+**Checkpoint:** Settings done. Push mostly done (wiring to triggers pending). Offline partially implemented. UI polish done.
 
 ---
 
@@ -481,8 +529,10 @@ Note: Claude API key is NOT per-user. It's a single shared service key for the e
 | `/api/ai/proxy` | POST | User session | Claude API proxy (stream) |
 | `/api/ai/route` | POST | User session | AI route proposals (2-3 options or custom) |
 | `/api/ai/triggers` | GET | CRON_SECRET header | Evaluate 5 trigger rules (all users) |
+| `/api/ai/memory-extract` | POST | CRON_SECRET header | Extract AI memory from recent interactions |
 | `/api/briefing` | GET/POST | CRON_SECRET or user session | Generate daily briefing |
-| `/api/chat` | POST | User session | Chat with first mate |
+| `/api/chat` | POST | User session | Agentic chat with first mate (tool_use) |
+| `/api/push` | POST | User session | Register/unregister push subscription |
 | `/api/weather` | GET | None (cached) | Open-Meteo proxy |
 | `/api/tides` | GET | None (cached) | WorldTides proxy |
 
