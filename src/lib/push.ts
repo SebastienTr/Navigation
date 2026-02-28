@@ -1,49 +1,84 @@
-import webpush from 'web-push';
+// ── Push Notifications ────────────────────────────────────────────────────
+// Envoie des notifications Web Push aux abonnés d'un utilisateur.
+// Utilise le client admin Supabase pour accéder aux subscriptions.
 
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
+import webpush from 'web-push'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/lib/supabase/types'
 
-if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(
-    'mailto:contact@laurine-navigator.com',
-    VAPID_PUBLIC_KEY,
-    VAPID_PRIVATE_KEY
-  );
-}
+type AdminClient = SupabaseClient<Database>
 
 interface PushPayload {
-  title: string;
-  body: string;
-  tag?: string;
-  url?: string;
+  title: string
+  body: string
+  tag?: string
+  url?: string
 }
 
-export async function sendPushNotification(
-  subscription: webpush.PushSubscription,
-  payload: PushPayload
-): Promise<boolean> {
-  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
-    console.warn('VAPID keys not configured, skipping push notification');
-    return false;
-  }
+function configureVapid() {
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+  const privateKey = process.env.VAPID_PRIVATE_KEY
 
-  try {
-    await webpush.sendNotification(subscription, JSON.stringify(payload));
-    return true;
-  } catch (error) {
-    console.error('Push notification failed:', error);
-    return false;
-  }
+  if (!publicKey || !privateKey) return false
+
+  webpush.setVapidDetails(
+    'mailto:contact@laurine-navigator.com',
+    publicKey,
+    privateKey
+  )
+  return true
 }
 
+/**
+ * Envoie une notification push à tous les devices d'un utilisateur.
+ * Nettoie les subscriptions invalides (410 Gone).
+ */
 export async function sendPushToUser(
-  supabase: Parameters<typeof sendPushNotification>[0] extends never ? never : {
-    from: (table: string) => { select: (cols: string) => { eq: (col: string, val: string) => Promise<{ data: Array<{ endpoint: string; keys: Record<string, string> }> | null }> } }
-  },
+  supabase: AdminClient,
   userId: string,
   payload: PushPayload
-): Promise<void> {
-  // This is a simplified version - in production, use the proper Supabase admin client
-  // The actual implementation fetches push subscriptions from the push_subscriptions table
-  console.log(`Push notification for user ${userId}:`, payload.title, payload.body);
+): Promise<number> {
+  if (!configureVapid()) {
+    console.warn('VAPID keys not configured — push skipped')
+    return 0
+  }
+
+  const { data: subscriptions, error } = await supabase
+    .from('push_subscriptions')
+    .select('id, endpoint, keys')
+    .eq('user_id', userId)
+
+  if (error || !subscriptions || subscriptions.length === 0) {
+    return 0
+  }
+
+  let sent = 0
+
+  for (const sub of subscriptions) {
+    try {
+      await webpush.sendNotification(
+        {
+          endpoint: sub.endpoint,
+          keys: sub.keys as { p256dh: string; auth: string },
+        },
+        JSON.stringify(payload)
+      )
+      sent++
+    } catch (pushError) {
+      // Supprimer les subscriptions expirées (410 Gone)
+      if (
+        pushError instanceof webpush.WebPushError &&
+        pushError.statusCode === 410
+      ) {
+        await supabase
+          .from('push_subscriptions')
+          .delete()
+          .eq('id', sub.id)
+      } else {
+        console.error(`Push failed for ${sub.endpoint}:`, pushError)
+      }
+    }
+  }
+
+  return sent
 }

@@ -36,11 +36,15 @@ self.addEventListener('fetch', (event) => {
 
   // API requests: network-first, cache fallback
   if (url.pathname.startsWith('/api/')) {
+    // Cache GET responses for weather, tides, and briefings
+    const shouldCache = url.pathname.startsWith('/api/weather')
+      || url.pathname.startsWith('/api/tides')
+      || url.pathname.startsWith('/api/briefing');
+
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          // Cache weather and tides responses
-          if (url.pathname.startsWith('/api/weather') || url.pathname.startsWith('/api/tides')) {
+          if (shouldCache && event.request.method === 'GET') {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           }

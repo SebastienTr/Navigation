@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { evaluateTriggers, type FiredTrigger } from '@/lib/triggers/engine'
-import * as webpush from 'web-push'
+import { sendPushToUser } from '@/lib/push'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -12,80 +12,6 @@ interface TriggerSummary {
   triggersFired: string[]
   notificationsSent: number
   errors: string[]
-}
-
-// ── Push notification helper ──────────────────────────────────────────────
-
-async function sendPushNotification(
-  adminSupabase: ReturnType<typeof createAdminClient>,
-  userId: string,
-  trigger: FiredTrigger
-): Promise<boolean> {
-  // Get user's push subscriptions
-  const { data: subscriptions, error } = await adminSupabase
-    .from('push_subscriptions')
-    .select('endpoint, keys')
-    .eq('user_id', userId)
-
-  if (error || !subscriptions || subscriptions.length === 0) {
-    return false
-  }
-
-  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-  const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY
-
-  if (!vapidPublicKey || !vapidPrivateKey) {
-    console.warn('VAPID keys not configured — push notifications disabled.')
-    return false
-  }
-
-  webpush.setVapidDetails(
-    'mailto:contact@laurine-navigator.app',
-    vapidPublicKey,
-    vapidPrivateKey
-  )
-
-  let sent = false
-
-  for (const sub of subscriptions) {
-    try {
-      const pushSubscription = {
-        endpoint: sub.endpoint,
-        keys: sub.keys as { p256dh: string; auth: string },
-      }
-
-      await webpush.sendNotification(
-        pushSubscription,
-        JSON.stringify({
-          title: `Alerte: ${trigger.type}`,
-          body: trigger.message,
-          icon: '/icons/icon-192x192.png',
-          badge: '/icons/badge-72x72.png',
-          tag: `trigger-${trigger.type}-${Date.now()}`,
-          data: { type: trigger.type },
-        })
-      )
-      sent = true
-    } catch (pushError) {
-      console.error(
-        `Push notification failed for subscription ${sub.endpoint}:`,
-        pushError
-      )
-
-      // Remove invalid subscriptions (410 Gone)
-      if (
-        pushError instanceof webpush.WebPushError &&
-        pushError.statusCode === 410
-      ) {
-        await adminSupabase
-          .from('push_subscriptions')
-          .delete()
-          .eq('endpoint', sub.endpoint)
-      }
-    }
-  }
-
-  return sent
 }
 
 // ── GET — Cron endpoint for trigger evaluation ────────────────────────────
@@ -180,15 +106,14 @@ export async function GET(request: NextRequest) {
           summary.triggersFired.push(trigger.type)
 
           try {
-            const sent = await sendPushNotification(
-              adminSupabase,
-              voyage.user_id,
-              trigger
-            )
+            const sent = await sendPushToUser(adminSupabase, voyage.user_id, {
+              title: `⚠️ ${trigger.type}`,
+              body: trigger.message,
+              tag: `trigger-${trigger.type}-${Date.now()}`,
+              url: '/chat',
+            })
 
-            if (sent) {
-              summary.notificationsSent++
-            }
+            summary.notificationsSent += sent
           } catch (pushError) {
             const errMsg =
               pushError instanceof Error

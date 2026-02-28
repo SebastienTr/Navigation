@@ -5,6 +5,7 @@ import { buildBriefingContext } from '@/lib/ai/context'
 import { buildBriefingSystemPrompt } from '@/lib/ai/prompts'
 import { callClaude, MODEL_SONNET } from '@/lib/ai/proxy'
 import { getActiveVoyage } from '@/lib/supabase/queries'
+import { sendPushToUser } from '@/lib/push'
 import type { Database } from '@/lib/supabase/types'
 import type { Verdict, Confidence } from '@/types'
 
@@ -269,6 +270,20 @@ export async function GET(request: NextRequest) {
         if (insertError) {
           throw new Error(`DB insert failed: ${insertError.message}`)
         }
+
+        // Envoyer push notification
+        await sendPushToUser(adminSupabase, voyage.user_id, {
+          title: verdict
+            ? `Briefing: ${verdict}`
+            : 'Votre briefing est prêt',
+          body: verdict
+            ? `Verdict du jour: ${verdict}${confidence ? ` (confiance ${confidence})` : ''}`
+            : 'Consultez votre briefing du matin',
+          tag: `briefing-${context.date}`,
+          url: '/briefings',
+        }).catch((err) =>
+          console.error(`Push failed for user ${voyage.user_id}:`, err)
+        )
 
         results.push({
           userId: voyage.user_id,

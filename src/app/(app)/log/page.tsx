@@ -16,10 +16,14 @@ import {
   Droplets,
   Clock,
   MapPin,
+  Camera,
+  X,
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth/context'
 import { useActiveVoyage } from '@/lib/auth/hooks'
+import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { createClient } from '@/lib/supabase/client'
+import { queueLogEntry, getPendingLogs, removePendingLog, getPendingCount } from '@/lib/offline-queue'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import type { Database } from '@/lib/supabase/types'
 
@@ -107,6 +111,8 @@ function fuelLevelIcon(level: FuelLevel | null): string {
 export default function LogPage() {
   const { user } = useAuth()
   const { voyage, boatStatus, loading: voyageLoading } = useActiveVoyage()
+  const isOnline = useOnlineStatus()
+  const [pendingCount, setPendingCount] = useState(0)
 
   // Form state
   const [entryType, setEntryType] = useState<EntryType>('navigation')
@@ -119,12 +125,62 @@ export default function LogPage() {
   const [problemTags, setProblemTags] = useState<string[]>([])
   const [problemText, setProblemText] = useState('')
   const [notes, setNotes] = useState('')
+  const [photos, setPhotos] = useState<{ url: string; file: File }[]>([])
+  const photoInputRef = useRef<HTMLInputElement>(null)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
   // History
   const [logs, setLogs] = useState<LogRow[]>([])
   const [logsLoading, setLogsLoading] = useState(true)
+
+  // Check pending count + sync when online
+  const syncPendingLogs = useCallback(async () => {
+    if (!isOnline || !voyage) return
+    const pending = await getPendingLogs()
+    if (pending.length === 0) return
+
+    const supabase = createClient()
+    let synced = 0
+
+    for (const entry of pending) {
+      try {
+        const { error: logError } = await supabase
+          .from('logs')
+          .insert(entry.data as Database['public']['Tables']['logs']['Insert'])
+        if (logError) continue
+
+        if (Object.keys(entry.statusUpdate).length > 0) {
+          await supabase
+            .from('boat_status')
+            .update(entry.statusUpdate as Database['public']['Tables']['boat_status']['Update'])
+            .eq('voyage_id', entry.voyageId)
+        }
+
+        await removePendingLog(entry.id)
+        synced++
+      } catch {
+        // Will retry next time
+      }
+    }
+
+    if (synced > 0) {
+      setToast(`${synced} entrée(s) synchronisée(s)`)
+      setTimeout(() => setToast(null), 3000)
+      fetchLogs()
+    }
+
+    const remaining = await getPendingCount()
+    setPendingCount(remaining)
+  }, [isOnline, voyage])
+
+  useEffect(() => {
+    syncPendingLogs()
+  }, [syncPendingLogs])
+
+  useEffect(() => {
+    getPendingCount().then(setPendingCount).catch(() => {})
+  }, [])
 
   // Auto-detect GPS position on mount (once only)
   const gpsAttempted = useRef(false)
@@ -207,7 +263,6 @@ export default function LogPage() {
     if (!user || !voyage) return
 
     setSaving(true)
-    const supabase = createClient()
 
     const combinedProblems = [
       ...problemTags,
@@ -229,18 +284,6 @@ export default function LogPage() {
       notes: notes.trim() || null,
     }
 
-    const { error: logError } = await supabase
-      .from('logs')
-      .insert(logEntry)
-
-    if (logError) {
-      console.error('Failed to save log:', logError.message)
-      setToast('Erreur lors de l\'enregistrement')
-      setSaving(false)
-      return
-    }
-
-    // Update boat_status
     const statusUpdate: Database['public']['Tables']['boat_status']['Update'] = {
       updated_at: new Date().toISOString(),
     }
@@ -261,24 +304,54 @@ export default function LogPage() {
       statusUpdate.active_problems = problemTags
     }
 
-    const { error: statusError } = await supabase
-      .from('boat_status')
-      .update(statusUpdate)
-      .eq('voyage_id', voyage.id)
+    if (!isOnline) {
+      // Queue for later sync
+      await queueLogEntry({
+        id: `log-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        timestamp: Date.now(),
+        data: logEntry as unknown as Record<string, unknown>,
+        statusUpdate: statusUpdate as unknown as Record<string, unknown>,
+        voyageId: voyage.id,
+      })
+      const count = await getPendingCount()
+      setPendingCount(count)
+      setToast('Sauvegardé hors-ligne — sera synchronisé au retour du réseau')
+    } else {
+      const supabase = createClient()
 
-    if (statusError) {
-      console.error('Failed to update boat status:', statusError.message)
+      const { error: logError } = await supabase
+        .from('logs')
+        .insert(logEntry)
+
+      if (logError) {
+        console.error('Failed to save log:', logError.message)
+        setToast('Erreur lors de l\'enregistrement')
+        setSaving(false)
+        return
+      }
+
+      const { error: statusError } = await supabase
+        .from('boat_status')
+        .update(statusUpdate)
+        .eq('voyage_id', voyage.id)
+
+      if (statusError) {
+        console.error('Failed to update boat status:', statusError.message)
+      }
+
+      setToast('Entrée enregistrée')
+
+      // Refresh logs
+      fetchLogs()
     }
 
     // Reset form
     setNotes('')
     setProblemText('')
     setProblemTags([])
-    setToast('Entrée enregistrée')
+    photos.forEach((p) => URL.revokeObjectURL(p.url))
+    setPhotos([])
     setSaving(false)
-
-    // Refresh logs
-    fetchLogs()
 
     // Clear toast after 3s
     setTimeout(() => setToast(null), 3000)
@@ -333,9 +406,23 @@ export default function LogPage() {
 
       {/* ── Log Form ────────────────────────────────────────────────────── */}
       <section className="mb-8">
-        <h1 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">
-          Nouvelle entrée
-        </h1>
+        <div className="mb-4 flex items-center justify-between">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+            Nouvelle entrée
+          </h1>
+          <div className="flex items-center gap-2">
+            {pendingCount > 0 && (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                {pendingCount} en attente
+              </span>
+            )}
+            {!isOnline && (
+              <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                Hors-ligne
+              </span>
+            )}
+          </div>
+        </div>
 
         {/* Date/Time */}
         <div className="mb-4">
@@ -501,7 +588,7 @@ export default function LogPage() {
         </div>
 
         {/* Notes */}
-        <div className="mb-5">
+        <div className="mb-4">
           <label
             htmlFor="notes"
             className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400"
@@ -516,6 +603,66 @@ export default function LogPage() {
             rows={3}
             className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
           />
+        </div>
+
+        {/* Photos */}
+        <div className="mb-5">
+          <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            <Camera className="mb-0.5 mr-1 inline h-3.5 w-3.5" />
+            Photos
+          </label>
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              const files = e.target.files
+              if (!files) return
+              const newPhotos = Array.from(files).map((file) => ({
+                url: URL.createObjectURL(file),
+                file,
+              }))
+              setPhotos((prev) => [...prev, ...newPhotos])
+              e.target.value = ''
+            }}
+          />
+          <div className="flex flex-wrap gap-2">
+            {photos.map((photo, i) => (
+              <div key={i} className="group relative h-20 w-20 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                <img
+                  src={photo.url}
+                  alt={`Photo ${i + 1}`}
+                  className="h-full w-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    URL.revokeObjectURL(photo.url)
+                    setPhotos((prev) => prev.filter((_, j) => j !== i))
+                  }}
+                  className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => photoInputRef.current?.click()}
+              className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-gray-300 text-gray-400 active:border-blue-400 active:text-blue-500 dark:border-gray-600 dark:text-gray-500"
+            >
+              <Camera size={20} />
+              <span className="text-[10px]">Ajouter</span>
+            </button>
+          </div>
+          {photos.length > 0 && (
+            <p className="mt-1 text-[10px] text-gray-400 dark:text-gray-500">
+              {photos.length} photo(s) — stockage local uniquement
+            </p>
+          )}
         </div>
 
         {/* Save button */}

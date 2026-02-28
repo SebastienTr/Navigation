@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from './context'
 import type { Database } from '@/lib/supabase/types'
@@ -64,6 +64,7 @@ interface UseActiveVoyageReturn {
   navProfile: NavProfileRow | null
   boatStatus: BoatStatusRow | null
   loading: boolean
+  refresh: () => Promise<void>
 }
 
 export function useActiveVoyage(): UseActiveVoyageReturn {
@@ -74,7 +75,7 @@ export function useActiveVoyage(): UseActiveVoyageReturn {
   const [boatStatus, setBoatStatus] = useState<BoatStatusRow | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const fetchActiveVoyage = useCallback(async () => {
     if (!user) {
       setVoyage(null)
       setBoat(null)
@@ -84,91 +85,91 @@ export function useActiveVoyage(): UseActiveVoyageReturn {
       return
     }
 
-    const fetchActiveVoyage = async () => {
-      setLoading(true)
-      const supabase = createClient()
+    setLoading(true)
+    const supabase = createClient()
 
-      // Fetch the active voyage for this user
-      const { data: voyageData, error: voyageError } = await supabase
-        .from('voyages')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .limit(1)
-        .returns<VoyageRow[]>()
-        .maybeSingle()
+    // Fetch the active voyage for this user
+    const { data: voyageData, error: voyageError } = await supabase
+      .from('voyages')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .limit(1)
+      .returns<VoyageRow[]>()
+      .maybeSingle()
 
-      if (voyageError) {
-        console.error('Failed to fetch active voyage:', voyageError.message)
-        setLoading(false)
-        return
-      }
-
-      if (!voyageData) {
-        setVoyage(null)
-        setBoat(null)
-        setNavProfile(null)
-        setBoatStatus(null)
-        setLoading(false)
-        return
-      }
-
-      setVoyage(voyageData)
-
-      // Fetch boat, nav profile, and boat status in parallel
-      const [boatResult, navProfileResult, boatStatusResult] =
-        await Promise.all([
-          supabase
-            .from('boats')
-            .select('*')
-            .eq('id', voyageData.boat_id)
-            .returns<BoatRow[]>()
-            .single(),
-          voyageData.nav_profile_id
-            ? supabase
-                .from('nav_profiles')
-                .select('*')
-                .eq('id', voyageData.nav_profile_id)
-                .returns<NavProfileRow[]>()
-                .single()
-            : Promise.resolve({ data: null, error: null }),
-          supabase
-            .from('boat_status')
-            .select('*')
-            .eq('voyage_id', voyageData.id)
-            .returns<BoatStatusRow[]>()
-            .single(),
-        ])
-
-      if (boatResult.error) {
-        console.error('Failed to fetch boat:', boatResult.error.message)
-      } else {
-        setBoat(boatResult.data)
-      }
-
-      if (navProfileResult.error) {
-        console.error(
-          'Failed to fetch nav profile:',
-          navProfileResult.error.message
-        )
-      } else {
-        setNavProfile(navProfileResult.data)
-      }
-
-      if (boatStatusResult.error) {
-        console.error(
-          'Failed to fetch boat status:',
-          boatStatusResult.error.message
-        )
-      } else {
-        setBoatStatus(boatStatusResult.data)
-      }
-
+    if (voyageError) {
+      console.error('Failed to fetch active voyage:', voyageError.message)
       setLoading(false)
+      return
     }
 
-    fetchActiveVoyage()
+    if (!voyageData) {
+      setVoyage(null)
+      setBoat(null)
+      setNavProfile(null)
+      setBoatStatus(null)
+      setLoading(false)
+      return
+    }
+
+    setVoyage(voyageData)
+
+    // Fetch boat, nav profile, and boat status in parallel
+    const [boatResult, navProfileResult, boatStatusResult] =
+      await Promise.all([
+        supabase
+          .from('boats')
+          .select('*')
+          .eq('id', voyageData.boat_id)
+          .returns<BoatRow[]>()
+          .single(),
+        voyageData.nav_profile_id
+          ? supabase
+              .from('nav_profiles')
+              .select('*')
+              .eq('id', voyageData.nav_profile_id)
+              .returns<NavProfileRow[]>()
+              .single()
+          : Promise.resolve({ data: null, error: null }),
+        supabase
+          .from('boat_status')
+          .select('*')
+          .eq('voyage_id', voyageData.id)
+          .returns<BoatStatusRow[]>()
+          .single(),
+      ])
+
+    if (boatResult.error) {
+      console.error('Failed to fetch boat:', boatResult.error.message)
+    } else {
+      setBoat(boatResult.data)
+    }
+
+    if (navProfileResult.error) {
+      console.error(
+        'Failed to fetch nav profile:',
+        navProfileResult.error.message
+      )
+    } else {
+      setNavProfile(navProfileResult.data)
+    }
+
+    if (boatStatusResult.error) {
+      console.error(
+        'Failed to fetch boat status:',
+        boatStatusResult.error.message
+      )
+    } else {
+      setBoatStatus(boatStatusResult.data)
+    }
+
+    setLoading(false)
   }, [user])
 
-  return { voyage, boat, navProfile, boatStatus, loading }
+  useEffect(() => {
+    fetchActiveVoyage()
+  }, [fetchActiveVoyage])
+
+  return { voyage, boat, navProfile, boatStatus, loading, refresh: fetchActiveVoyage }
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Wind,
@@ -12,12 +12,15 @@ import {
   Anchor,
   MapPin,
   ChevronRight,
+  RefreshCw,
+  Check,
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth/context'
 import { useActiveVoyage } from '@/lib/auth/hooks'
 import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/Card'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { timeAgo } from '@/lib/utils'
 import type { Database } from '@/lib/supabase/types'
 
 type BriefingRow = Database['public']['Tables']['briefings']['Row']
@@ -156,6 +159,9 @@ function VerdictCard({ voyageId }: { voyageId: string }) {
           {briefing.destination}
         </p>
       )}
+      <p className="mt-1 text-[10px] opacity-70">
+        {timeAgo(briefing.created_at)}
+      </p>
     </Card>
   )
 }
@@ -283,50 +289,159 @@ function WeatherMetric({
   )
 }
 
+// ── Level options for quick update ────────────────────────────────────────
+
+const LEVEL_OPTIONS = ['full', '3/4', 'half', '1/4', 'reserve', 'empty'] as const
+
 // ── LevelsBar ─────────────────────────────────────────────────────────────
 
 function LevelsBar({
   fuelTank,
   jerricans,
   water,
+  voyageId,
+  onUpdated,
 }: {
   fuelTank: string | null
   jerricans: number | null
   water: string | null
+  voyageId: string
+  onUpdated: () => void
 }) {
-  const router = useRouter()
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [localFuel, setLocalFuel] = useState(fuelTank ?? 'half')
+  const [localWater, setLocalWater] = useState(water ?? 'half')
+
+  useEffect(() => {
+    setLocalFuel(fuelTank ?? 'half')
+    setLocalWater(water ?? 'half')
+  }, [fuelTank, water])
 
   const fuelPercent = LEVEL_VALUES[fuelTank ?? ''] ?? 0
   const waterPercent = LEVEL_VALUES[water ?? ''] ?? 0
 
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const supabase = createClient()
+      await supabase
+        .from('boat_status')
+        .update({ fuel_tank: localFuel, water: localWater })
+        .eq('voyage_id', voyageId)
+      setEditing(false)
+      onUpdated()
+    } catch (err) {
+      console.error('Failed to update levels:', err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
-    <Card onClick={() => router.push('/log')}>
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-        Niveaux
-      </h3>
-      <div className="space-y-3">
-        <LevelRow
-          icon={<Fuel size={16} />}
-          label="Carburant"
-          percent={fuelPercent}
-          displayValue={LEVEL_LABELS[fuelTank ?? ''] ?? '—'}
-          extra={
-            jerricans !== null && jerricans > 0
-              ? `+ ${jerricans} jerricans`
-              : undefined
-          }
-        />
-        <LevelRow
-          icon={<Droplets size={16} />}
-          label="Eau douce"
-          percent={waterPercent}
-          displayValue={LEVEL_LABELS[water ?? ''] ?? '—'}
-        />
+    <Card>
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          Niveaux
+        </h3>
+        <button
+          type="button"
+          onClick={() => setEditing(!editing)}
+          className="text-xs font-medium text-blue-600 active:text-blue-700 dark:text-blue-400"
+        >
+          {editing ? 'Annuler' : 'Modifier'}
+        </button>
       </div>
-      <p className="mt-2 text-right text-[10px] text-gray-400 dark:text-gray-500">
-        Mettre à jour dans le journal <ChevronRight size={10} className="inline" />
-      </p>
+
+      {editing ? (
+        <div className="space-y-4">
+          <QuickLevelSelector
+            icon={<Fuel size={16} />}
+            label="Carburant"
+            value={localFuel}
+            onChange={setLocalFuel}
+          />
+          <QuickLevelSelector
+            icon={<Droplets size={16} />}
+            label="Eau douce"
+            value={localWater}
+            onChange={setLocalWater}
+          />
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white active:bg-blue-700 disabled:opacity-50 dark:bg-blue-500"
+          >
+            {saving ? (
+              <RefreshCw size={16} className="animate-spin" />
+            ) : (
+              <Check size={16} />
+            )}
+            Enregistrer
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-3">
+            <LevelRow
+              icon={<Fuel size={16} />}
+              label="Carburant"
+              percent={fuelPercent}
+              displayValue={LEVEL_LABELS[fuelTank ?? ''] ?? '—'}
+              extra={
+                jerricans !== null && jerricans > 0
+                  ? `+ ${jerricans} jerricans`
+                  : undefined
+              }
+            />
+            <LevelRow
+              icon={<Droplets size={16} />}
+              label="Eau douce"
+              percent={waterPercent}
+              displayValue={LEVEL_LABELS[water ?? ''] ?? '—'}
+            />
+          </div>
+        </>
+      )}
     </Card>
+  )
+}
+
+function QuickLevelSelector({
+  icon,
+  label,
+  value,
+  onChange,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string
+  onChange: (v: string) => void
+}) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+        <div className="text-gray-400 dark:text-gray-500">{icon}</div>
+        {label}
+      </div>
+      <div className="grid grid-cols-6 gap-1.5">
+        {LEVEL_OPTIONS.map((opt) => (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => onChange(opt)}
+            className={`rounded-md px-1 py-2 text-xs font-medium transition-colors ${
+              value === opt
+                ? 'bg-blue-600 text-white dark:bg-blue-500'
+                : 'bg-gray-100 text-gray-600 active:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:active:bg-gray-700'
+            }`}
+          >
+            {LEVEL_LABELS[opt]}
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -489,11 +604,72 @@ function MiniMap() {
   )
 }
 
+// ── Pull-to-refresh hook ──────────────────────────────────────────────────
+
+function usePullToRefresh(onRefresh: () => Promise<void>) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [pullDistance, setPullDistance] = useState(0)
+  const [refreshing, setRefreshing] = useState(false)
+  const startY = useRef(0)
+  const pulling = useRef(false)
+
+  const THRESHOLD = 80
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (el.scrollTop <= 0 && !refreshing) {
+        startY.current = e.touches[0].clientY
+        pulling.current = true
+      }
+    }
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!pulling.current) return
+      const delta = e.touches[0].clientY - startY.current
+      if (delta > 0) {
+        setPullDistance(Math.min(delta * 0.5, THRESHOLD * 1.5))
+      }
+    }
+
+    const onTouchEnd = async () => {
+      if (!pulling.current) return
+      pulling.current = false
+
+      if (pullDistance >= THRESHOLD) {
+        setRefreshing(true)
+        setPullDistance(THRESHOLD * 0.5)
+        try {
+          await onRefresh()
+        } finally {
+          setRefreshing(false)
+        }
+      }
+      setPullDistance(0)
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: true })
+    el.addEventListener('touchend', onTouchEnd)
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [onRefresh, pullDistance, refreshing])
+
+  return { containerRef, pullDistance, refreshing }
+}
+
 // ── Dashboard Page ────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
   const { user } = useAuth()
-  const { voyage, boatStatus, loading } = useActiveVoyage()
+  const { voyage, boatStatus, loading, refresh } = useActiveVoyage()
+  const { containerRef, pullDistance, refreshing } = usePullToRefresh(refresh)
 
   if (loading) {
     return (
@@ -522,35 +698,61 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-3 p-4">
-      <header className="mb-1">
-        <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-          {voyage.name}
-        </h1>
-        {boatStatus?.current_position && (
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            <MapPin size={12} className="mr-0.5 inline" />
-            {boatStatus.current_position}
-          </p>
-        )}
-      </header>
+    <div ref={containerRef} className="relative">
+      {/* Pull-to-refresh indicator */}
+      {(pullDistance > 0 || refreshing) && (
+        <div
+          className="flex items-center justify-center overflow-hidden transition-[height]"
+          style={{ height: refreshing ? 40 : pullDistance > 0 ? pullDistance : 0 }}
+        >
+          <RefreshCw
+            size={20}
+            className={`text-blue-500 ${refreshing ? 'animate-spin' : ''}`}
+            style={{
+              opacity: Math.min(pullDistance / 80, 1),
+              transform: `rotate(${pullDistance * 3}deg)`,
+            }}
+          />
+        </div>
+      )}
 
-      <VerdictCard voyageId={voyage.id} />
+      <div className="space-y-3 p-4">
+        <header className="mb-1">
+          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+            {voyage.name}
+          </h1>
+          {boatStatus?.current_position && (
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              <MapPin size={12} className="mr-0.5 inline" />
+              {boatStatus.current_position}
+              {boatStatus.updated_at && (
+                <span className="ml-1.5 text-gray-400 dark:text-gray-600">
+                  ({timeAgo(boatStatus.updated_at)})
+                </span>
+              )}
+            </p>
+          )}
+        </header>
 
-      <WeatherSummary
-        lat={boatStatus?.current_lat ?? null}
-        lon={boatStatus?.current_lon ?? null}
-      />
+        <VerdictCard voyageId={voyage.id} />
 
-      <LevelsBar
-        fuelTank={boatStatus?.fuel_tank ?? null}
-        jerricans={boatStatus?.jerricans ?? null}
-        water={boatStatus?.water ?? null}
-      />
+        <WeatherSummary
+          lat={boatStatus?.current_lat ?? null}
+          lon={boatStatus?.current_lon ?? null}
+        />
 
-      <RouteProgress voyageId={voyage.id} />
+        <LevelsBar
+          fuelTank={boatStatus?.fuel_tank ?? null}
+          jerricans={boatStatus?.jerricans ?? null}
+          water={boatStatus?.water ?? null}
+          voyageId={voyage.id}
+          onUpdated={refresh}
+        />
 
-      <MiniMap />
+        <RouteProgress voyageId={voyage.id} />
+
+        <MiniMap />
+      </div>
     </div>
   )
 }

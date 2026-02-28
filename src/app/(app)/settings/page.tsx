@@ -15,8 +15,11 @@ import {
   Loader2,
   Check,
   AlertTriangle,
+  Bell,
+  BellOff,
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth/context'
+import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { useUser, useActiveVoyage } from '@/lib/auth/hooks'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
@@ -836,6 +839,9 @@ export default function SettingsPage() {
   const [voyages, setVoyages] = useState<VoyageRow[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Push notifications
+  const { isSubscribed, isSupported, subscribe, unsubscribe } = usePushNotifications()
+
   // UI state
   const [openSection, setOpenSection] = useState<string | null>('boat')
   const [editingBoatId, setEditingBoatId] = useState<string | null>(null)
@@ -1149,6 +1155,47 @@ export default function SettingsPage() {
                 <Plus size={16} />
                 Nouveau voyage
               </button>
+            )}
+          </div>
+        </AccordionSection>
+
+        {/* ── Section: Notifications ──────────────────────────────────── */}
+        <AccordionSection
+          title="Notifications"
+          icon={Bell}
+          isOpen={openSection === 'notifications'}
+          onToggle={() => toggleSection('notifications')}
+        >
+          <div className="space-y-3">
+            {isSupported ? (
+              <>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Recevez des alertes météo, rappels et briefings directement sur votre appareil.
+                </p>
+                {isSubscribed ? (
+                  <button
+                    type="button"
+                    onClick={unsubscribe}
+                    className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 active:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:active:bg-gray-800"
+                  >
+                    <BellOff size={16} />
+                    Désactiver les notifications
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={subscribe}
+                    className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white active:bg-blue-700 dark:bg-blue-500 dark:active:bg-blue-600"
+                  >
+                    <Bell size={16} />
+                    Activer les notifications
+                  </button>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Les notifications push ne sont pas supportées par ce navigateur.
+              </p>
             )}
           </div>
         </AccordionSection>

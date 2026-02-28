@@ -52,6 +52,25 @@ export function formatDateTime(date: string): string {
   return format(parseISO(date), 'd MMMM yyyy HH:mm', { locale: fr })
 }
 
+export function timeAgo(date: string | Date): string {
+  const now = Date.now()
+  const then = typeof date === 'string' ? new Date(date).getTime() : date.getTime()
+  const diffMs = now - then
+
+  const minutes = Math.floor(diffMs / 60000)
+  if (minutes < 1) return 'à l\'instant'
+  if (minutes < 60) return `il y a ${minutes} min`
+
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `il y a ${hours}h`
+
+  const days = Math.floor(hours / 24)
+  if (days === 1) return 'hier'
+  if (days < 7) return `il y a ${days}j`
+
+  return format(typeof date === 'string' ? parseISO(date) : date, 'd MMM', { locale: fr })
+}
+
 // ── Distance formatting ─────────────────────────────────────────────────────
 
 export function formatDistance(nm: number | null, km: number | null): string {
