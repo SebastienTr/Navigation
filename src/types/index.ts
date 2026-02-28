@@ -17,6 +17,7 @@ export type LogRow = Tables['logs']['Row']
 export type ChecklistRow = Tables['checklist']['Row']
 export type ChatHistoryRow = Tables['chat_history']['Row']
 export type ReminderRow = Tables['reminders']['Row']
+export type AiMemoryRow = Tables['ai_memory']['Row']
 
 // ── Verdict ────────────────────────────────────────────────────────────────
 
@@ -117,6 +118,13 @@ export interface RouteProposal {
 
 // ── Contextes AI ───────────────────────────────────────────────────────────
 
+export interface MemoryDocs {
+  situation: string
+  boat: string
+  crew: string
+  preferences: string
+}
+
 export interface BriefingContext {
   boat: BoatRow
   profile: NavProfileRow | null
@@ -127,6 +135,7 @@ export interface BriefingContext {
   weather: WeatherData | null
   tides: TideData | null
   checklist: ChecklistRow[]
+  memory: MemoryDocs | null
   date: string
 }
 
@@ -143,6 +152,7 @@ export interface ChatContext {
   latestBriefing: BriefingRow | null
   recentChat: ChatHistoryRow[]
   reminders: ReminderRow[]
+  memory: MemoryDocs | null
   date: string
 }
 
@@ -153,6 +163,7 @@ export interface TriggerContext {
   latestBriefing: BriefingRow | null
   checklist: ChecklistRow[]
   routeSteps: RouteStepRow[]
+  memory: MemoryDocs | null
   date: string
 }
 

@@ -3,6 +3,7 @@ import type {
   ChatContext,
   TriggerContext,
   TriggerType,
+  MemoryDocs,
   ReminderRow,
 } from '@/types'
 
@@ -159,6 +160,18 @@ function formatReminders(reminders: ReminderRow[]): string {
     .join('\n')
 }
 
+function formatMemory(memory: MemoryDocs | null): string {
+  if (!memory) return 'Aucune mémoire enregistrée.'
+
+  const sections: string[] = []
+  if (memory.situation) sections.push(`### Situation actuelle\n${memory.situation}`)
+  if (memory.boat) sections.push(`### Observations bateau\n${memory.boat}`)
+  if (memory.crew) sections.push(`### Équipage\n${memory.crew}`)
+  if (memory.preferences) sections.push(`### Préférences du capitaine\n${memory.preferences}`)
+
+  return sections.length > 0 ? sections.join('\n\n') : 'Aucune mémoire enregistrée.'
+}
+
 // ── BRIEFING SYSTEM PROMPT ─────────────────────────────────────────────────
 
 export function buildBriefingSystemPrompt(ctx: BriefingContext): string {
@@ -196,6 +209,9 @@ ${ctx.tides?.summary ?? 'Données de marée indisponibles.'}
 
 ## CHECKLIST
 ${formatChecklist(ctx.checklist)}
+
+## MÉMOIRE (notes persistantes des conversations précédentes)
+${formatMemory(ctx.memory)}
 
 ## DATE
 ${ctx.date}
@@ -283,6 +299,9 @@ ${formatChecklist(ctx.checklist)}
 ### Rappels programmés
 ${formatReminders(ctx.reminders)}
 
+### Mémoire (notes persistantes)
+${formatMemory(ctx.memory)}
+
 ### Dernier briefing
 ${ctx.latestBriefing ? `Date: ${ctx.latestBriefing.date}
 Verdict: ${ctx.latestBriefing.verdict ?? 'N/A'}
@@ -337,6 +356,16 @@ Récupérer la météo pour un lieu précis. Utilise-le quand:
 - Tu as besoin de données météo pour une étape future
 Tu dois fournir les coordonnées GPS du lieu.
 
+### update_memory
+Mettre à jour la mémoire persistante. Tu as 4 documents (situation, boat, crew, preferences).
+UTILISE CET OUTIL PROACTIVEMENT quand le capitaine partage des infos importantes:
+- "Je suis à Nice, le bateau est à Audierne" → update situation
+- "Le pilote auto déconne encore" → update boat
+- "Ma femme nous rejoint à Sète" → update crew
+- "Je préfère les briefings très courts" → update preferences
+Le contenu remplace l'ancien — inclus TOUT ce qui est pertinent, pas juste le changement.
+Ces documents sont lus par le briefing du matin et les alertes — c'est ta mémoire à long terme.
+
 ## RÈGLES D'UTILISATION DES OUTILS
 - Agis d'abord, confirme ensuite. Pas besoin de demander "voulez-vous que je..." — fais-le.
 - Si le capitaine donne des infos incomplètes, utilise ce que tu as et demande le reste.
@@ -384,6 +413,9 @@ ${ctx.latestBriefing ? `Verdict: ${ctx.latestBriefing.verdict ?? 'N/A'} — ${ct
 
 ### Checklist en attente
 ${formatChecklist(ctx.checklist)}
+
+### Mémoire
+${formatMemory(ctx.memory)}
 
 ### Date
 ${ctx.date}

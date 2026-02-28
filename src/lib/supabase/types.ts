@@ -599,6 +599,89 @@ export interface Database {
           }
         ]
       }
+      ai_memory: {
+        Row: {
+          id: string
+          user_id: string
+          voyage_id: string
+          slug: 'situation' | 'boat' | 'crew' | 'preferences'
+          content: string
+          version: number
+          updated_at: string
+          updated_by: 'chat' | 'cron' | 'system'
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          voyage_id: string
+          slug: 'situation' | 'boat' | 'crew' | 'preferences'
+          content?: string
+          version?: number
+          updated_at?: string
+          updated_by?: 'chat' | 'cron' | 'system'
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          voyage_id?: string
+          slug?: 'situation' | 'boat' | 'crew' | 'preferences'
+          content?: string
+          version?: number
+          updated_at?: string
+          updated_by?: 'chat' | 'cron' | 'system'
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_memory_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_memory_voyage_id_fkey"
+            columns: ["voyage_id"]
+            isOneToOne: false
+            referencedRelation: "voyages"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      ai_memory_versions: {
+        Row: {
+          id: string
+          memory_id: string
+          content: string
+          version: number
+          created_at: string
+          updated_by: string
+        }
+        Insert: {
+          id?: string
+          memory_id: string
+          content: string
+          version: number
+          created_at?: string
+          updated_by?: string
+        }
+        Update: {
+          id?: string
+          memory_id?: string
+          content?: string
+          version?: number
+          created_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_memory_versions_memory_id_fkey"
+            columns: ["memory_id"]
+            isOneToOne: false
+            referencedRelation: "ai_memory"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       push_subscriptions: {
         Row: {
           id: string

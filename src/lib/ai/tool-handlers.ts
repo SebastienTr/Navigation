@@ -58,6 +58,7 @@ const TOOL_HANDLERS: Record<
   manage_route: handleManageRoute,
   create_reminder: handleCreateReminder,
   get_weather: handleGetWeather,
+  update_memory: handleUpdateMemory,
 }
 
 // ── 1. create_log_entry ──────────────────────────────────────────────────────
@@ -646,5 +647,97 @@ async function handleGetWeather(
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur inconnue'
     return { success: false, summary: `Erreur météo: ${message}` }
+  }
+}
+
+// ── 7. update_memory ──────────────────────────────────────────────────────
+
+async function handleUpdateMemory(
+  input: Record<string, unknown>,
+  ctx: ToolCallContext
+): Promise<ToolCallResult> {
+  const { supabase, userId, voyageId } = ctx
+  const slug = input.slug as 'situation' | 'boat' | 'crew' | 'preferences'
+  const content = input.content as string
+
+  if (!slug || !content) {
+    return { success: false, summary: 'slug et content requis' }
+  }
+
+  // Check if doc already exists
+  const { data: existing } = await supabase
+    .from('ai_memory')
+    .select('id, version')
+    .eq('voyage_id', voyageId)
+    .eq('slug', slug)
+    .maybeSingle()
+
+  if (existing) {
+    const newVersion = existing.version + 1
+
+    // Save current version to history
+    await supabase.from('ai_memory_versions').insert({
+      memory_id: existing.id,
+      content,
+      version: newVersion,
+      updated_by: 'chat',
+    })
+
+    // Prune old versions (keep last 5)
+    const { data: versions } = await supabase
+      .from('ai_memory_versions')
+      .select('id')
+      .eq('memory_id', existing.id)
+      .order('version', { ascending: false })
+      .range(5, 100)
+
+    if (versions && versions.length > 0) {
+      await supabase
+        .from('ai_memory_versions')
+        .delete()
+        .in('id', versions.map((v) => v.id))
+    }
+
+    // Update main doc
+    const { error } = await supabase
+      .from('ai_memory')
+      .update({
+        content,
+        version: newVersion,
+        updated_at: new Date().toISOString(),
+        updated_by: 'chat' as const,
+      })
+      .eq('id', existing.id)
+
+    if (error) return { success: false, summary: `Erreur mise à jour mémoire: ${error.message}` }
+    return { success: true, summary: `Mémoire "${slug}" mise à jour (v${newVersion})` }
+  } else {
+    // Create new doc
+    const { data: inserted, error } = await supabase
+      .from('ai_memory')
+      .insert({
+        user_id: userId,
+        voyage_id: voyageId,
+        slug,
+        content,
+        version: 1,
+        updated_by: 'chat' as const,
+      })
+      .select('id')
+      .single()
+
+    if (error) return { success: false, summary: `Erreur création mémoire: ${error.message}` }
+
+    // Save first version
+    if (inserted) {
+      await supabase.from('ai_memory_versions').insert({
+        memory_id: inserted.id,
+        content,
+        version: 1,
+        updated_by: 'chat',
+      })
+    }
+
+    return { success: true, summary: `Mémoire "${slug}" créée` }
   }
 }

@@ -13,6 +13,7 @@ type LogRow = Tables['logs']['Row']
 type ChecklistRow = Tables['checklist']['Row']
 type ChatHistoryRow = Tables['chat_history']['Row']
 type ReminderRow = Tables['reminders']['Row']
+type AiMemoryRow = Tables['ai_memory']['Row']
 
 type Client = SupabaseClient<Database>
 
@@ -304,6 +305,22 @@ export async function getPendingReminders(
     .lte('remind_at', new Date().toISOString())
     .order('remind_at', { ascending: true })
     .returns<ReminderRow[]>()
+
+  if (error) throw error
+  return data ?? []
+}
+
+// ── AI Memory ──────────────────────────────────────────────────────────
+
+export async function getVoyageMemory(
+  supabase: Client,
+  voyageId: string
+): Promise<AiMemoryRow[]> {
+  const { data, error } = await supabase
+    .from('ai_memory')
+    .select('*')
+    .eq('voyage_id', voyageId)
+    .returns<AiMemoryRow[]>()
 
   if (error) throw error
   return data ?? []

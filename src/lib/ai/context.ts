@@ -12,6 +12,7 @@ import {
   getLatestBriefing,
   getVoyageChatHistory,
   getVoyageReminders,
+  getVoyageMemory,
 } from '@/lib/supabase/queries'
 import type {
   BriefingContext,
@@ -21,6 +22,7 @@ import type {
   TideData,
   BoatRow,
   NavProfileRow,
+  MemoryDocs,
   ReminderRow,
 } from '@/types'
 
@@ -56,6 +58,24 @@ async function getVoyageBoatAndProfile(
     : null
 
   return { boat, profile }
+}
+
+// ── Helper pour construire les MemoryDocs ──────────────────────────────────
+
+async function fetchMemoryDocs(
+  supabase: Client,
+  voyageId: string
+): Promise<MemoryDocs | null> {
+  const rows = await getVoyageMemory(supabase, voyageId)
+  if (rows.length === 0) return null
+
+  const docs: MemoryDocs = { situation: '', boat: '', crew: '', preferences: '' }
+  for (const row of rows) {
+    if (row.slug in docs) {
+      docs[row.slug] = row.content
+    }
+  }
+  return docs
 }
 
 // ── Base URL pour les appels API internes ──────────────────────────────────
@@ -146,12 +166,14 @@ export async function buildBriefingContext(
     latestLogs,
     routeSteps,
     checklist,
+    memory,
   ] = await Promise.all([
     getVoyageBoatAndProfile(supabase, userId, voyageId),
     getVoyageBoatStatus(supabase, voyageId),
     getVoyageLogs(supabase, voyageId, 10),
     getVoyageRouteSteps(supabase, voyageId),
     getVoyageChecklist(supabase, voyageId),
+    fetchMemoryDocs(supabase, voyageId),
   ])
 
   const currentStep = findCurrentStep(routeSteps, boatStatus?.current_step_id ?? null)
@@ -179,6 +201,7 @@ export async function buildBriefingContext(
     weather,
     tides,
     checklist,
+    memory,
     date: new Date().toISOString().split('T')[0],
   }
 }
@@ -199,6 +222,7 @@ export async function buildChatContext(
     latestBriefing,
     recentChat,
     reminders,
+    memory,
   ] = await Promise.all([
     getVoyageBoatAndProfile(supabase, userId, voyageId),
     getVoyageBoatStatus(supabase, voyageId),
@@ -208,6 +232,7 @@ export async function buildChatContext(
     getLatestBriefing(supabase, voyageId),
     getVoyageChatHistory(supabase, voyageId, 20),
     getVoyageReminders(supabase, voyageId, 10),
+    fetchMemoryDocs(supabase, voyageId),
   ])
 
   const currentStep = findCurrentStep(routeSteps, boatStatus?.current_step_id ?? null)
@@ -238,6 +263,7 @@ export async function buildChatContext(
     latestBriefing,
     recentChat,
     reminders,
+    memory,
     date: new Date().toISOString().split('T')[0],
   }
 }
@@ -269,6 +295,7 @@ export async function buildTriggerContext(
     latestBriefing,
     checklist,
     routeSteps,
+    memory,
   ] = await Promise.all([
     getBoat(supabase, voyage.boat_id),
     getVoyageBoatStatus(supabase, voyageId),
@@ -276,6 +303,7 @@ export async function buildTriggerContext(
     getLatestBriefing(supabase, voyageId),
     getVoyageChecklist(supabase, voyageId),
     getVoyageRouteSteps(supabase, voyageId),
+    fetchMemoryDocs(supabase, voyageId),
   ])
 
   if (!boat) {
@@ -289,6 +317,7 @@ export async function buildTriggerContext(
     latestBriefing,
     checklist,
     routeSteps,
+    memory,
     date: new Date().toISOString().split('T')[0],
   }
 }

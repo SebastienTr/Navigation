@@ -11,6 +11,7 @@ export type ToolName =
   | 'manage_route'
   | 'create_reminder'
   | 'get_weather'
+  | 'update_memory'
 
 export const CHAT_TOOLS: Anthropic.Tool[] = [
   // ── 1. Créer une entrée journal ─────────────────────────────────────────
@@ -262,6 +263,28 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
         },
       },
       required: ['latitude', 'longitude'],
+    },
+  },
+
+  // ── 7. Mettre à jour la mémoire ────────────────────────────────────────
+  {
+    name: 'update_memory',
+    description:
+      'Mettre à jour un document de mémoire persistante. Ces documents sont lus par le briefing du matin, le chat et les alertes. Utilise cet outil PROACTIVEMENT quand le capitaine partage des informations importantes sur la situation, le bateau, l\'équipage ou ses préférences. Les 4 slugs disponibles:\n- "situation": où est le capitaine, où est le bateau, plans à venir, dates, contexte actuel\n- "boat": observations sur le bateau, problèmes récurrents, réparations, particularités\n- "crew": composition équipage, état de santé, moral, compétences\n- "preferences": préférences du capitaine (briefings, horaires, style de navigation)',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        slug: {
+          type: 'string',
+          enum: ['situation', 'boat', 'crew', 'preferences'],
+          description: 'Quel document mettre à jour',
+        },
+        content: {
+          type: 'string',
+          description: 'Nouveau contenu du document (remplace l\'ancien). Écris en français, format markdown concis. Inclus les dates quand c\'est pertinent.',
+        },
+      },
+      required: ['slug', 'content'],
     },
   },
 ]
