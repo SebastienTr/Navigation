@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
-import { MODEL_SONNET } from '@/lib/ai/proxy'
+import { MODEL_CHAT } from '@/lib/ai/proxy'
 import { buildRouteSystemPrompt } from '@/lib/ai/prompts'
 import { getUserBoats, getNavProfiles } from '@/lib/supabase/queries'
+import { log } from '@/lib/logger'
 
 interface BoatPayload {
   name?: string
@@ -98,6 +99,8 @@ function getClient(): Anthropic {
 export const maxDuration = 300
 
 export async function POST(request: NextRequest) {
+  const timer = log.timed('route', 'AI route generation')
+
   try {
     const supabase = await createClient()
     const {
@@ -106,6 +109,7 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
+      log.warn('route', 'Unauthenticated request', { authError: authError?.message })
       return NextResponse.json(
         { error: 'Non authentifié. Veuillez vous connecter.' },
         { status: 401 }
@@ -130,6 +134,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    log.info('route', 'Route request', { departure, arrival, model: MODEL_CHAT, custom: !!description, userId: user.id })
 
     // Get boat/profile from body (onboarding) or DB (settings)
     let boatInfo: {
@@ -215,13 +221,14 @@ export async function POST(request: NextRequest) {
     // Stream via SSE
     const encoder = new TextEncoder()
     const client = getClient()
+    const streamTimer = log.timed('ai', 'Claude stream', { model: MODEL_CHAT, departure, arrival })
 
     const sseStream = new ReadableStream<Uint8Array>({
       async start(controller) {
         let accumulated = ''
         try {
           const stream = client.messages.stream({
-            model: MODEL_SONNET,
+            model: MODEL_CHAT,
             max_tokens: 16384,
             system: systemPrompt,
             messages: [{ role: 'user', content: userMessage }],
@@ -234,6 +241,7 @@ export async function POST(request: NextRequest) {
           })
 
           await stream.finalMessage()
+          streamTimer.end({ tokens: accumulated.length })
 
           // Parse accumulated JSON and send done event with routes
           const parsed = extractJSON(accumulated)
@@ -267,11 +275,15 @@ export async function POST(request: NextRequest) {
             })),
           }))
 
+          timer.end({ routes: parsed.routes.length, departure, arrival })
+
           const doneEvent = `data: ${JSON.stringify({ type: 'done', routes: parsed.routes, options })}\n\n`
           controller.enqueue(encoder.encode(doneEvent))
           controller.close()
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Erreur inconnue'
+          streamTimer.error(error, { accumulated_length: accumulated.length })
+          timer.error(error, { departure, arrival })
           const errorEvent = `data: ${JSON.stringify({ type: 'error', error: message })}\n\n`
           controller.enqueue(encoder.encode(errorEvent))
           controller.close()
@@ -287,7 +299,7 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('AI route generation error:', error)
+    timer.error(error)
 
     const message =
       error instanceof Error ? error.message : 'Erreur interne du serveur'

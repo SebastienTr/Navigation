@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCombinedWeather, getEnhancedWeather } from '@/lib/weather/open-meteo'
+import { log } from '@/lib/logger'
 
 export async function GET(request: NextRequest) {
+  const timer = log.timed('weather', 'Weather fetch')
   try {
     const { searchParams } = request.nextUrl
     const latStr = searchParams.get('lat')
@@ -36,13 +38,15 @@ export async function GET(request: NextRequest) {
       ? await getEnhancedWeather(lat, lon)
       : await getCombinedWeather(lat, lon)
 
+    timer.end({ lat, lon, mode })
+
     return NextResponse.json(weather, {
       headers: {
         'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=1800',
       },
     })
   } catch (error) {
-    console.error('Weather API error:', error)
+    timer.error(error)
 
     const message =
       error instanceof Error ? error.message : 'Erreur interne du serveur'

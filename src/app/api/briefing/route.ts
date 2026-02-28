@@ -6,6 +6,7 @@ import { buildBriefingSystemPrompt } from '@/lib/ai/prompts'
 import { callClaude, MODEL_SONNET } from '@/lib/ai/proxy'
 import { getActiveVoyage } from '@/lib/supabase/queries'
 import { sendPushToUser } from '@/lib/push'
+import { log } from '@/lib/logger'
 import type { Database } from '@/lib/supabase/types'
 import type { Verdict, Confidence } from '@/types'
 
@@ -72,6 +73,7 @@ function parseVerdictFromContent(content: string): {
 // ── POST — User-triggered briefing ────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  const timer = log.timed('briefing', 'User briefing generation')
   try {
     // Authenticate user
     const supabase = await createClient()
@@ -137,7 +139,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (insertError) {
-      console.error('Failed to save briefing:', insertError)
+      log.error('briefing', 'Failed to save briefing', { error: insertError.message, voyageId: voyage.id })
       // Still return the briefing even if save failed
       return NextResponse.json({
         content,
@@ -150,6 +152,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    timer.end({ verdict: briefing.verdict, voyageId: voyage.id })
+
     return NextResponse.json({
       id: briefing.id,
       content: briefing.content,
@@ -161,7 +165,7 @@ export async function POST(request: NextRequest) {
       saved: true,
     })
   } catch (error) {
-    console.error('Briefing generation error:', error)
+    timer.error(error)
 
     const message =
       error instanceof Error ? error.message : 'Erreur interne du serveur'
@@ -176,6 +180,7 @@ export async function POST(request: NextRequest) {
 // ── GET — Cron job: generate briefings for all active voyages ─────────────
 
 export async function GET(request: NextRequest) {
+  const cronTimer = log.timed('briefing', 'Cron briefing batch')
   try {
     // Verify cron secret
     const authHeader = request.headers.get('authorization')
@@ -311,6 +316,7 @@ export async function GET(request: NextRequest) {
     }
 
     const successCount = results.filter((r) => r.success).length
+    cronTimer.end({ generated: successCount, total: activeVoyages.length })
 
     return NextResponse.json({
       message: `Briefings générés : ${successCount}/${activeVoyages.length}`,
@@ -319,7 +325,7 @@ export async function GET(request: NextRequest) {
       results,
     })
   } catch (error) {
-    console.error('Cron briefing error:', error)
+    cronTimer.error(error)
 
     const message =
       error instanceof Error ? error.message : 'Erreur interne du serveur'
