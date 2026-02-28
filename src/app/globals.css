@@ -31,8 +31,8 @@ body {
   overscroll-behavior: none;
 }
 
-html, body {
-  overflow-x: hidden;
+html {
+  overflow-x: clip;
 }
 
 .leaflet-container {
