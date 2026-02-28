@@ -38,6 +38,17 @@
   --foreground: #e1e8ef;
 }
 
+/* ── Dark mode map tiles ─────────────────────────────────────────── */
+.dark .leaflet-tile-pane {
+  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+.dark .leaflet-marker-pane,
+.dark .leaflet-shadow-pane,
+.dark .leaflet-overlay-pane svg,
+.dark .leaflet-popup-pane {
+  filter: none;
+}
+
 /* ── Base styles ─────────────────────────────────────────────────── */
 body {
   background: var(--background);
