@@ -10,6 +10,7 @@ import {
   type CallClaudeWithToolsResult,
 } from '@/lib/ai/proxy'
 import { getVoyageChatHistory } from '@/lib/supabase/queries'
+import { log } from '@/lib/logger'
 
 interface ChatRequestBody {
   message: string
@@ -17,6 +18,7 @@ interface ChatRequestBody {
 }
 
 export async function POST(request: NextRequest) {
+  const timer = log.timed('chat', 'Chat message')
   try {
     // Authenticate user via Supabase session
     const supabase = await createClient()
@@ -100,8 +102,10 @@ export async function POST(request: NextRequest) {
       })
 
     if (insertUserError) {
-      console.error('Failed to save user message:', insertUserError)
+      log.error('chat', 'Failed to save user message', { error: insertUserError.message })
     }
+
+    log.info('chat', 'Processing message', { model: MODEL_CHAT_TOOLS, voyageId: body.voyageId, msgLength: body.message.length })
 
     // Admin client pour les tool handlers (bypass RLS, auth vérifiée ci-dessus)
     const adminSupabase = createAdminClient()
@@ -183,11 +187,10 @@ export async function POST(request: NextRequest) {
               })
 
             if (insertAssistantError) {
-              console.error(
-                'Failed to save assistant message:',
-                insertAssistantError
-              )
+              log.error('chat', 'Failed to save assistant message', { error: insertAssistantError.message })
             }
+
+            timer.end({ toolCalls: result.toolCalls.length, textLength: result.text.length })
           }
         } catch (error) {
           const errorMessage =
@@ -213,7 +216,7 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Chat API error:', error)
+    timer.error(error)
 
     const message =
       error instanceof Error ? error.message : 'Erreur interne du serveur'
