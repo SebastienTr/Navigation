@@ -8,7 +8,7 @@ export type ToolName =
   | 'create_log_entry'
   | 'manage_checklist'
   | 'update_boat_status'
-  | 'update_route_progress'
+  | 'manage_route'
   | 'create_reminder'
   | 'get_weather'
 
@@ -69,32 +69,36 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
   {
     name: 'manage_checklist',
     description:
-      'Ajouter, cocher, ou lister des éléments de la checklist. Utilise "add" pour créer un nouvel élément, "check" pour marquer comme fait, "uncheck" pour remettre à faire, "list" pour voir les éléments en attente.',
+      'Gérer la checklist du voyage. Actions: "add" (créer), "check" (marquer fait), "uncheck" (remettre à faire), "delete" (supprimer), "edit" (modifier), "list" (lister les éléments en attente).',
     input_schema: {
       type: 'object' as const,
       properties: {
         action: {
           type: 'string',
-          enum: ['add', 'check', 'uncheck', 'list'],
+          enum: ['add', 'check', 'uncheck', 'delete', 'edit', 'list'],
           description: 'Action à effectuer',
         },
         task: {
           type: 'string',
-          description: 'Nom de la tâche (requis pour add, utilisé comme recherche pour check/uncheck)',
+          description: 'Nom de la tâche (requis pour add, utilisé comme recherche fuzzy pour check/uncheck/delete/edit)',
         },
         category: {
           type: 'string',
           enum: ['Safety', 'Propulsion', 'Navigation', 'Rigging', 'Comfort', 'Admin'],
-          description: 'Catégorie de la tâche (pour add)',
+          description: 'Catégorie de la tâche (pour add/edit)',
         },
         priority: {
           type: 'string',
           enum: ['Critical', 'High', 'Normal', 'Low'],
-          description: 'Priorité de la tâche (pour add)',
+          description: 'Priorité de la tâche (pour add/edit)',
         },
         notes: {
           type: 'string',
-          description: 'Notes optionnelles',
+          description: 'Notes optionnelles (pour add/edit)',
+        },
+        new_task: {
+          type: 'string',
+          description: 'Nouveau nom de la tâche (pour edit uniquement)',
         },
       },
       required: ['action'],
@@ -150,25 +154,58 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
     },
   },
 
-  // ── 4. Mettre à jour la progression de route ──────────────────────────
+  // ── 4. Gérer la route ───────────────────────────────────────────────────
   {
-    name: 'update_route_progress',
+    name: 'manage_route',
     description:
-      'Marquer une étape de la route comme terminée (done) ou en cours (in_progress). Quand une étape est marquée done, la suivante passe automatiquement en in_progress. Utilise quand le capitaine signale qu\'il a terminé une étape.',
+      'Gérer les étapes de la route du voyage. Actions: "update_status" (marquer une étape done/in_progress), "add_step" (ajouter une étape), "edit_step" (modifier une étape), "delete_step" (supprimer une étape), "list" (lister toutes les étapes).',
     input_schema: {
       type: 'object' as const,
       properties: {
+        action: {
+          type: 'string',
+          enum: ['update_status', 'add_step', 'edit_step', 'delete_step', 'list'],
+          description: 'Action à effectuer sur la route',
+        },
         step_name: {
           type: 'string',
-          description: 'Nom de l\'étape (recherche partielle, ex: "Lorient-Belle-Ile" ou "Belle-Ile")',
+          description: 'Nom ou recherche partielle de l\'étape (requis pour update_status, edit_step, delete_step. Pour add_step, utilisé comme nom de la nouvelle étape)',
         },
         new_status: {
           type: 'string',
           enum: ['done', 'in_progress'],
-          description: 'Nouveau statut de l\'étape',
+          description: 'Nouveau statut (pour update_status)',
+        },
+        from_port: {
+          type: 'string',
+          description: 'Port de départ (pour add_step/edit_step)',
+        },
+        to_port: {
+          type: 'string',
+          description: 'Port d\'arrivée (pour add_step/edit_step)',
+        },
+        after_step_name: {
+          type: 'string',
+          description: 'Insérer après cette étape (recherche partielle, pour add_step)',
+        },
+        phase: {
+          type: 'string',
+          description: 'Phase de l\'étape: Maritime, Canal, Fluvial (pour add_step/edit_step)',
+        },
+        distance_nm: {
+          type: 'number',
+          description: 'Distance en milles nautiques (pour add_step/edit_step)',
+        },
+        distance_km: {
+          type: 'number',
+          description: 'Distance en kilomètres (pour add_step/edit_step, canaux/fluvial)',
+        },
+        notes: {
+          type: 'string',
+          description: 'Notes sur l\'étape (pour add_step/edit_step)',
         },
       },
-      required: ['step_name', 'new_status'],
+      required: ['action'],
     },
   },
 

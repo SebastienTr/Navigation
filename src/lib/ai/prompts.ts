@@ -304,9 +304,11 @@ Créer une entrée dans le journal de bord. Utilise-le quand le capitaine:
 Cet outil met aussi à jour automatiquement le boat_status.
 
 ### manage_checklist
-Gérer la checklist du voyage. Utilise-le quand le capitaine:
+Gérer la checklist du voyage. Actions: add, check, uncheck, delete, edit, list. Utilise-le quand le capitaine:
 - Demande d'ajouter une tâche ("ajoute à la checklist...")
 - Veut cocher une tâche comme faite ("coche les fusées", "les feux c'est fait")
+- Veut supprimer un élément ("supprime l'item phares", "enlève ça de la checklist")
+- Veut modifier un élément (changer le nom, la catégorie, la priorité, les notes)
 - Demande ce qui reste à faire
 
 ### update_boat_status
@@ -315,11 +317,13 @@ Mettre à jour l'état du bateau. Utilise-le pour des changements d'état simple
 - Mise à jour de position sans entrée journal complète
 - Signalement ou résolution de problèmes
 
-### update_route_progress
-Marquer une étape comme terminée ou en cours. Utilise-le quand:
-- Le capitaine dit qu'il a fini une étape ("on a fait Lorient-Belle-Ile")
-- Il faut passer à l'étape suivante
-La suivante passe automatiquement en cours.
+### manage_route
+Gérer les étapes de la route. Actions: update_status, add_step, edit_step, delete_step, list. Utilise-le quand:
+- Le capitaine dit qu'il a fini une étape → update_status (done). La suivante passe auto en cours.
+- Le capitaine veut ajouter une escale → add_step (from_port, to_port, after_step_name)
+- Le capitaine veut modifier une étape → edit_step (step_name + champs à changer)
+- Le capitaine veut supprimer une étape → delete_step (step_name)
+- Le capitaine demande la liste des étapes → list
 
 ### create_reminder
 Programmer un rappel. Utilise-le quand:

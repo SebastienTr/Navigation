@@ -54,7 +54,7 @@ const TOOL_LABELS: Record<string, string> = {
   create_log_entry: 'Journal',
   manage_checklist: 'Checklist',
   update_boat_status: 'État bateau',
-  update_route_progress: 'Route',
+  manage_route: 'Route',
   create_reminder: 'Rappel',
   get_weather: 'Météo',
 }
@@ -63,7 +63,7 @@ const TOOL_ICONS: Record<string, typeof BookOpen> = {
   create_log_entry: BookOpen,
   manage_checklist: CheckSquare,
   update_boat_status: Navigation,
-  update_route_progress: Route,
+  manage_route: Route,
   create_reminder: Bell,
   get_weather: CloudSun,
 }

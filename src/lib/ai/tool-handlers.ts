@@ -55,7 +55,7 @@ const TOOL_HANDLERS: Record<
   create_log_entry: handleCreateLogEntry,
   manage_checklist: handleManageChecklist,
   update_boat_status: handleUpdateBoatStatus,
-  update_route_progress: handleUpdateRouteProgress,
+  manage_route: handleManageRoute,
   create_reminder: handleCreateReminder,
   get_weather: handleGetWeather,
 }
@@ -186,6 +186,82 @@ async function handleManageChecklist(
     }
   }
 
+  if (action === 'delete') {
+    const task = input.task as string
+    if (!task) return { success: false, summary: 'Nom de tâche requis pour supprimer' }
+
+    const { data: items, error: fetchError } = await supabase
+      .from('checklist')
+      .select('*')
+      .eq('voyage_id', voyageId)
+      .ilike('task', `%${task}%`)
+      .returns<ChecklistRow[]>()
+
+    if (fetchError) return { success: false, summary: `Erreur recherche: ${fetchError.message}` }
+    if (!items || items.length === 0) {
+      return { success: false, summary: `Aucun élément trouvé pour "${task}"` }
+    }
+
+    const item = items[0]
+    const { error: deleteError } = await supabase
+      .from('checklist')
+      .delete()
+      .eq('id', item.id)
+
+    if (deleteError) return { success: false, summary: `Erreur suppression: ${deleteError.message}` }
+    return { success: true, summary: `Checklist: "${item.task}" supprimé` }
+  }
+
+  if (action === 'edit') {
+    const task = input.task as string
+    if (!task) return { success: false, summary: 'Nom de tâche requis pour modifier' }
+
+    const { data: items, error: fetchError } = await supabase
+      .from('checklist')
+      .select('*')
+      .eq('voyage_id', voyageId)
+      .ilike('task', `%${task}%`)
+      .returns<ChecklistRow[]>()
+
+    if (fetchError) return { success: false, summary: `Erreur recherche: ${fetchError.message}` }
+    if (!items || items.length === 0) {
+      return { success: false, summary: `Aucun élément trouvé pour "${task}"` }
+    }
+
+    const item = items[0]
+    const update: Record<string, unknown> = {}
+    const changes: string[] = []
+
+    if (input.new_task) {
+      update.task = input.new_task
+      changes.push(`nom: "${input.new_task}"`)
+    }
+    if (input.category) {
+      update.category = input.category
+      changes.push(`catégorie: ${input.category}`)
+    }
+    if (input.priority) {
+      update.priority = input.priority
+      changes.push(`priorité: ${input.priority}`)
+    }
+    if (input.notes != null) {
+      update.notes = input.notes || null
+      changes.push(`notes mises à jour`)
+    }
+
+    if (changes.length === 0) {
+      return { success: false, summary: 'Aucune modification spécifiée' }
+    }
+
+    const { error: updateError } = await supabase
+      .from('checklist')
+      .update(update)
+      .eq('id', item.id)
+
+    if (updateError) return { success: false, summary: `Erreur modification: ${updateError.message}` }
+    return { success: true, summary: `Checklist: "${item.task}" modifié (${changes.join(', ')})` }
+  }
+
   if (action === 'list') {
     const { data: items, error: fetchError } = await supabase
       .from('checklist')
@@ -267,83 +343,218 @@ async function handleUpdateBoatStatus(
   return { success: true, summary: `État du bateau mis à jour: ${changes.join(', ')}` }
 }
 
-// ── 4. update_route_progress ─────────────────────────────────────────────────
+// ── 4. manage_route ──────────────────────────────────────────────────────────
 
-async function handleUpdateRouteProgress(
+async function handleManageRoute(
   input: Record<string, unknown>,
   ctx: ToolCallContext
 ): Promise<ToolCallResult> {
   const { supabase, voyageId } = ctx
-  const stepName = input.step_name as string
-  const newStatus = input.new_status as 'done' | 'in_progress'
+  const action = input.action as string
 
-  // Chercher l'étape par nom (fuzzy)
-  const { data: steps, error: fetchError } = await supabase
-    .from('route_steps')
-    .select('*')
-    .eq('voyage_id', voyageId)
-    .order('order_num', { ascending: true })
-    .returns<RouteStepRow[]>()
-
-  if (fetchError) return { success: false, summary: `Erreur lecture route: ${fetchError.message}` }
-  if (!steps || steps.length === 0) {
-    return { success: false, summary: 'Aucune étape de route définie' }
+  // Helper: fetch all steps ordered
+  async function fetchSteps() {
+    const { data, error } = await supabase
+      .from('route_steps')
+      .select('*')
+      .eq('voyage_id', voyageId)
+      .order('order_num', { ascending: true })
+      .returns<RouteStepRow[]>()
+    return { steps: data ?? [], error }
   }
 
-  // Recherche fuzzy
-  const normalizedSearch = stepName.toLowerCase()
-  const matchedStep = steps.find(
-    (s) =>
-      s.name.toLowerCase().includes(normalizedSearch) ||
-      s.from_port.toLowerCase().includes(normalizedSearch) ||
-      s.to_port.toLowerCase().includes(normalizedSearch)
-  )
+  // Helper: fuzzy match a step by name
+  function findStep(steps: RouteStepRow[], name: string): RouteStepRow | undefined {
+    const normalized = name.toLowerCase()
+    return steps.find(
+      (s) =>
+        s.name.toLowerCase().includes(normalized) ||
+        s.from_port.toLowerCase().includes(normalized) ||
+        s.to_port.toLowerCase().includes(normalized)
+    )
+  }
 
-  if (!matchedStep) {
-    const available = steps.map((s) => s.name).join(', ')
-    return {
-      success: false,
-      summary: `Étape "${stepName}" non trouvée. Étapes disponibles: ${available}`,
+  // ── update_status ──
+  if (action === 'update_status') {
+    const stepName = input.step_name as string
+    const newStatus = input.new_status as 'done' | 'in_progress'
+    if (!stepName || !newStatus) {
+      return { success: false, summary: 'step_name et new_status requis pour update_status' }
     }
+
+    const { steps, error: fetchError } = await fetchSteps()
+    if (fetchError) return { success: false, summary: `Erreur lecture route: ${fetchError.message}` }
+    if (steps.length === 0) return { success: false, summary: 'Aucune étape de route définie' }
+
+    const matchedStep = findStep(steps, stepName)
+    if (!matchedStep) {
+      const available = steps.map((s) => s.name).join(', ')
+      return { success: false, summary: `Étape "${stepName}" non trouvée. Étapes disponibles: ${available}` }
+    }
+
+    const { error: updateError } = await supabase
+      .from('route_steps')
+      .update({ status: newStatus })
+      .eq('id', matchedStep.id)
+
+    if (updateError) return { success: false, summary: `Erreur mise à jour: ${updateError.message}` }
+
+    if (newStatus === 'done') {
+      const nextStep = steps.find((s) => s.order_num === matchedStep.order_num + 1)
+      if (nextStep && nextStep.status === 'to_do') {
+        await supabase.from('route_steps').update({ status: 'in_progress' }).eq('id', nextStep.id)
+        await supabase
+          .from('boat_status')
+          .update({ current_step_id: nextStep.id, current_position: nextStep.from_port, updated_at: new Date().toISOString() })
+          .eq('voyage_id', voyageId)
+        return { success: true, summary: `Route: "${matchedStep.name}" terminée ✓, "${nextStep.name}" maintenant en cours` }
+      }
+      return { success: true, summary: `Route: "${matchedStep.name}" terminée ✓` }
+    }
+
+    return { success: true, summary: `Route: "${matchedStep.name}" → en cours` }
   }
 
-  // Mettre à jour l'étape
-  const { error: updateError } = await supabase
-    .from('route_steps')
-    .update({ status: newStatus })
-    .eq('id', matchedStep.id)
+  // ── add_step ──
+  if (action === 'add_step') {
+    const stepName = input.step_name as string
+    const fromPort = input.from_port as string
+    const toPort = input.to_port as string
+    if (!fromPort || !toPort) {
+      return { success: false, summary: 'from_port et to_port requis pour add_step' }
+    }
 
-  if (updateError) return { success: false, summary: `Erreur mise à jour: ${updateError.message}` }
+    const { steps, error: fetchError } = await fetchSteps()
+    if (fetchError) return { success: false, summary: `Erreur lecture route: ${fetchError.message}` }
 
-  // Si on marque done, passer la suivante en in_progress
-  if (newStatus === 'done') {
-    const nextStep = steps.find((s) => s.order_num === matchedStep.order_num + 1)
-    if (nextStep && nextStep.status === 'to_do') {
-      await supabase
-        .from('route_steps')
-        .update({ status: 'in_progress' })
-        .eq('id', nextStep.id)
+    let insertAfterOrder = steps.length // default: append at end
+    const afterStepName = input.after_step_name as string | undefined
+    if (afterStepName) {
+      const afterStep = findStep(steps, afterStepName)
+      if (!afterStep) {
+        return { success: false, summary: `Étape de référence "${afterStepName}" non trouvée` }
+      }
+      insertAfterOrder = afterStep.order_num
+    }
 
-      // Mettre à jour current_step_id dans boat_status
-      await supabase
-        .from('boat_status')
-        .update({
-          current_step_id: nextStep.id,
-          current_position: nextStep.from_port,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('voyage_id', voyageId)
+    // Shift order_num for all steps after insertion point
+    const stepsToShift = steps.filter((s) => s.order_num > insertAfterOrder)
+    for (const s of stepsToShift) {
+      await supabase.from('route_steps').update({ order_num: s.order_num + 1 }).eq('id', s.id)
+    }
 
-      return {
-        success: true,
-        summary: `Route: "${matchedStep.name}" terminée ✓, "${nextStep.name}" maintenant en cours`,
+    const newOrderNum = insertAfterOrder + 1
+    const name = stepName || `${fromPort} → ${toPort}`
+
+    const { error: insertError } = await supabase.from('route_steps').insert({
+      voyage_id: voyageId,
+      order_num: newOrderNum,
+      name,
+      from_port: fromPort,
+      to_port: toPort,
+      phase: (input.phase as string) ?? null,
+      distance_nm: (input.distance_nm as number) ?? null,
+      distance_km: (input.distance_km as number) ?? null,
+      notes: (input.notes as string) ?? null,
+      status: 'to_do' as const,
+    })
+
+    if (insertError) return { success: false, summary: `Erreur insertion: ${insertError.message}` }
+
+    const afterLabel = afterStepName ? ` après "${afterStepName}"` : ' en fin de route'
+    return { success: true, summary: `Route: étape "${name}" ajoutée${afterLabel}` }
+  }
+
+  // ── edit_step ──
+  if (action === 'edit_step') {
+    const stepName = input.step_name as string
+    if (!stepName) return { success: false, summary: 'step_name requis pour edit_step' }
+
+    const { steps, error: fetchError } = await fetchSteps()
+    if (fetchError) return { success: false, summary: `Erreur lecture route: ${fetchError.message}` }
+
+    const matchedStep = findStep(steps, stepName)
+    if (!matchedStep) {
+      const available = steps.map((s) => s.name).join(', ')
+      return { success: false, summary: `Étape "${stepName}" non trouvée. Étapes: ${available}` }
+    }
+
+    const update: Record<string, unknown> = {}
+    const changes: string[] = []
+
+    if (input.from_port) { update.from_port = input.from_port; changes.push(`départ: ${input.from_port}`) }
+    if (input.to_port) { update.to_port = input.to_port; changes.push(`arrivée: ${input.to_port}`) }
+    if (input.phase) { update.phase = input.phase; changes.push(`phase: ${input.phase}`) }
+    if (input.distance_nm != null) { update.distance_nm = input.distance_nm; changes.push(`${input.distance_nm} NM`) }
+    if (input.distance_km != null) { update.distance_km = input.distance_km; changes.push(`${input.distance_km} km`) }
+    if (input.notes != null) { update.notes = input.notes || null; changes.push('notes mises à jour') }
+
+    // Update name if from_port or to_port changed
+    if (input.from_port || input.to_port) {
+      const newFrom = (input.from_port as string) || matchedStep.from_port
+      const newTo = (input.to_port as string) || matchedStep.to_port
+      update.name = `${newFrom} → ${newTo}`
+    }
+
+    if (changes.length === 0) return { success: false, summary: 'Aucune modification spécifiée' }
+
+    const { error: updateError } = await supabase
+      .from('route_steps')
+      .update(update)
+      .eq('id', matchedStep.id)
+
+    if (updateError) return { success: false, summary: `Erreur modification: ${updateError.message}` }
+    return { success: true, summary: `Route: "${matchedStep.name}" modifiée (${changes.join(', ')})` }
+  }
+
+  // ── delete_step ──
+  if (action === 'delete_step') {
+    const stepName = input.step_name as string
+    if (!stepName) return { success: false, summary: 'step_name requis pour delete_step' }
+
+    const { steps, error: fetchError } = await fetchSteps()
+    if (fetchError) return { success: false, summary: `Erreur lecture route: ${fetchError.message}` }
+
+    const matchedStep = findStep(steps, stepName)
+    if (!matchedStep) {
+      const available = steps.map((s) => s.name).join(', ')
+      return { success: false, summary: `Étape "${stepName}" non trouvée. Étapes: ${available}` }
+    }
+
+    const { error: deleteError } = await supabase
+      .from('route_steps')
+      .delete()
+      .eq('id', matchedStep.id)
+
+    if (deleteError) return { success: false, summary: `Erreur suppression: ${deleteError.message}` }
+
+    // Re-number remaining steps
+    const remaining = steps.filter((s) => s.id !== matchedStep.id)
+    for (let i = 0; i < remaining.length; i++) {
+      if (remaining[i].order_num !== i + 1) {
+        await supabase.from('route_steps').update({ order_num: i + 1 }).eq('id', remaining[i].id)
       }
     }
 
-    return { success: true, summary: `Route: "${matchedStep.name}" terminée ✓` }
+    return { success: true, summary: `Route: étape "${matchedStep.name}" supprimée` }
   }
 
-  return { success: true, summary: `Route: "${matchedStep.name}" → en cours` }
+  // ── list ──
+  if (action === 'list') {
+    const { steps, error: fetchError } = await fetchSteps()
+    if (fetchError) return { success: false, summary: `Erreur lecture route: ${fetchError.message}` }
+    if (steps.length === 0) return { success: true, summary: 'Aucune étape de route définie', data: { steps: [] } }
+
+    const list = steps.map((s) => {
+      const dist = s.distance_nm ? `${s.distance_nm} NM` : s.distance_km ? `${s.distance_km} km` : ''
+      const status = s.status === 'done' ? '✓' : s.status === 'in_progress' ? '►' : '○'
+      return `${status} ${s.order_num}. ${s.name} (${s.from_port} → ${s.to_port})${dist ? ` — ${dist}` : ''}${s.phase ? ` [${s.phase}]` : ''}`
+    }).join('\n')
+
+    return { success: true, summary: `Route (${steps.length} étapes):\n${list}`, data: { steps } }
+  }
+
+  return { success: false, summary: `Action route inconnue: ${action}` }
 }
 
 // ── 5. create_reminder ───────────────────────────────────────────────────────

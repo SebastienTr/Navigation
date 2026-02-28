@@ -935,6 +935,8 @@ export default function SettingsPage() {
   const [addingVoyage, setAddingVoyage] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [activating, setActivating] = useState<string | null>(null)
+  const [deletingVoyageId, setDeletingVoyageId] = useState<string | null>(null)
+  const [regeneratingVoyageId, setRegeneratingVoyageId] = useState<string | null>(null)
 
   // Fetch all settings data
   const fetchData = useCallback(async () => {
@@ -1006,6 +1008,67 @@ export default function SettingsPage() {
 
     setActivating(null)
     fetchData()
+  }
+
+  const handleDeleteVoyage = async (voyageId: string) => {
+    if (!user) return
+
+    setDeletingVoyageId(voyageId)
+    const supabase = createClient()
+
+    // Delete cascade: route_steps, boat_status, checklist, logs, briefings, chat_history, reminders
+    await Promise.all([
+      supabase.from('route_steps').delete().eq('voyage_id', voyageId),
+      supabase.from('boat_status').delete().eq('voyage_id', voyageId),
+      supabase.from('checklist').delete().eq('voyage_id', voyageId),
+      supabase.from('logs').delete().eq('voyage_id', voyageId),
+      supabase.from('briefings').delete().eq('voyage_id', voyageId),
+      supabase.from('chat_history').delete().eq('voyage_id', voyageId),
+      supabase.from('reminders').delete().eq('voyage_id', voyageId),
+    ])
+
+    // Delete the voyage itself
+    await supabase.from('voyages').delete().eq('id', voyageId).eq('user_id', user.id)
+
+    setDeletingVoyageId(null)
+    fetchData()
+  }
+
+  const handleRegenerateRoute = async (voyageId: string) => {
+    setRegeneratingVoyageId(voyageId)
+    // The UI will show an inline AIRouteWizard for this voyage
+    // The actual regeneration is handled by the wizard + save callback
+  }
+
+  const handleSaveRegeneratedRoute = async (voyageId: string, route: RouteOption) => {
+    const supabase = createClient()
+
+    // Delete existing route steps
+    await supabase.from('route_steps').delete().eq('voyage_id', voyageId)
+
+    // Insert new route steps
+    if (route.steps.length > 0) {
+      const routeStepsPayload = route.steps.map((step) => ({
+        voyage_id: voyageId,
+        order_num: step.order_num,
+        name: step.name,
+        from_port: step.from_port,
+        to_port: step.to_port,
+        from_lat: step.from_lat,
+        from_lon: step.from_lon,
+        to_lat: step.to_lat,
+        to_lon: step.to_lon,
+        distance_nm: step.distance_nm,
+        distance_km: step.distance_km,
+        phase: step.phase,
+        notes: step.notes,
+        status: 'to_do' as const,
+      }))
+
+      await supabase.from('route_steps').insert(routeStepsPayload)
+    }
+
+    setRegeneratingVoyageId(null)
   }
 
   const handleDeleteAccount = async () => {
@@ -1164,8 +1227,13 @@ export default function SettingsPage() {
               const boatForVoyage = boats.find(
                 (b) => b.id === voyage.boat_id
               )
+              const profileForVoyage = navProfiles.find(
+                (p) => p.id === voyage.nav_profile_id
+              )
               const isActive = voyage.status === 'active'
               const isActivating = activating === voyage.id
+              const isDeleting = deletingVoyageId === voyage.id
+              const isRegenerating = regeneratingVoyageId === voyage.id
 
               return (
                 <div
@@ -1196,20 +1264,104 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  {!isActive && voyage.status !== 'completed' && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {!isActive && voyage.status !== 'completed' && (
+                      <button
+                        type="button"
+                        onClick={() => handleActivateVoyage(voyage.id)}
+                        disabled={isActivating}
+                        className="flex min-h-[36px] items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white active:bg-green-700"
+                      >
+                        {isActivating ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <Check size={14} />
+                        )}
+                        Activer
+                      </button>
+                    )}
+
+                    {boatForVoyage && (
+                      <button
+                        type="button"
+                        onClick={() => handleRegenerateRoute(voyage.id)}
+                        disabled={isRegenerating}
+                        className="flex min-h-[36px] items-center gap-1.5 rounded-md border border-blue-300 px-3 py-1.5 text-xs font-medium text-blue-600 active:bg-blue-50 dark:border-blue-700 dark:text-blue-400 dark:active:bg-blue-900/20"
+                      >
+                        <Navigation size={14} />
+                        {isRegenerating ? 'Régénération...' : 'Régénérer la route'}
+                      </button>
+                    )}
+
                     <button
                       type="button"
-                      onClick={() => handleActivateVoyage(voyage.id)}
-                      disabled={isActivating}
-                      className="mt-2 flex min-h-[36px] items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white active:bg-green-700"
-                    >
-                      {isActivating ? (
-                        <Loader2 size={14} className="animate-spin" />
-                      ) : (
-                        <Check size={14} />
+                      onClick={() => {
+                        if (isDeleting) {
+                          handleDeleteVoyage(voyage.id)
+                        } else {
+                          setDeletingVoyageId(voyage.id)
+                        }
+                      }}
+                      className={cn(
+                        'flex min-h-[36px] items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium',
+                        isDeleting
+                          ? 'bg-red-600 text-white active:bg-red-700'
+                          : 'border border-red-300 text-red-600 active:bg-red-50 dark:border-red-700 dark:text-red-400 dark:active:bg-red-900/20'
                       )}
-                      Activer
+                    >
+                      <Trash2 size={14} />
+                      {isDeleting ? 'Confirmer la suppression' : 'Supprimer'}
                     </button>
+                    {isDeleting && (
+                      <button
+                        type="button"
+                        onClick={() => setDeletingVoyageId(null)}
+                        className="flex min-h-[36px] items-center rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 active:bg-gray-100 dark:border-gray-600 dark:text-gray-400"
+                      >
+                        Annuler
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Inline AI Route Wizard for regeneration */}
+                  {isRegenerating && boatForVoyage && (
+                    <div className="mt-3 border-t border-gray-200 pt-3 dark:border-gray-700">
+                      <AIRouteWizard
+                        departurePort=""
+                        arrivalPort=""
+                        boat={{
+                          name: boatForVoyage.name,
+                          type: boatForVoyage.type,
+                          length_m: boatForVoyage.length_m,
+                          draft_m: boatForVoyage.draft_m,
+                          air_draft_m: boatForVoyage.air_draft_m,
+                          engine_type: boatForVoyage.engine_type,
+                          fuel_capacity_hours: boatForVoyage.fuel_capacity_hours,
+                          avg_speed_kn: boatForVoyage.avg_speed_kn,
+                        }}
+                        profile={{
+                          experience: profileForVoyage?.experience ?? null,
+                          crew_mode: profileForVoyage?.crew_mode ?? null,
+                          risk_tolerance: profileForVoyage?.risk_tolerance ?? null,
+                          night_sailing: profileForVoyage?.night_sailing ?? null,
+                          max_continuous_hours: profileForVoyage?.max_continuous_hours ?? null,
+                        }}
+                        onRouteConfirmed={(route) => {
+                          if (route) {
+                            handleSaveRegeneratedRoute(voyage.id, route)
+                          } else {
+                            setRegeneratingVoyageId(null)
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setRegeneratingVoyageId(null)}
+                        className="mt-2 text-xs text-gray-500 active:text-gray-700 dark:text-gray-400"
+                      >
+                        Annuler la régénération
+                      </button>
+                    </div>
                   )}
                 </div>
               )
