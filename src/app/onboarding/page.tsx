@@ -869,7 +869,7 @@ export default function OnboardingPage() {
   const progressPercent = ((currentStep + 1) / totalSteps) * 100
 
   return (
-    <div className="min-h-dvh flex flex-col bg-slate-50 dark:bg-slate-950">
+    <div className="h-dvh flex flex-col bg-slate-50 dark:bg-slate-950">
       {/* Header with step indicator */}
       <header className="sticky top-0 z-10 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 pt-4 pb-3">
         <div className="flex items-center justify-between mb-3">
