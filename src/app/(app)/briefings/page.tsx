@@ -136,7 +136,7 @@ function TodayBriefing({ briefing, onDelete }: TodayBriefingProps) {
       <div className="mb-3 flex items-start justify-between">
         <div>
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-            Briefing du jour
+            {isToday(briefing.date) ? 'Briefing du jour' : 'Dernier briefing'}
           </p>
           <p className="text-xs text-gray-400 dark:text-gray-500">
             {formatDate(briefing.date)} à {new Date(briefing.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
@@ -354,6 +354,7 @@ export default function BriefingsPage() {
       .eq('voyage_id', voyage.id)
       .eq('user_id', user.id)
       .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
       .returns<BriefingRow[]>()
 
     if (error) {
@@ -421,9 +422,9 @@ export default function BriefingsPage() {
     })
   }
 
-  // Filter logic
-  const todayBriefing = briefings.find((b) => isToday(b.date))
-  const historyBriefings = briefings.filter((b) => !isToday(b.date))
+  // Filter logic: latest briefing on top, all others in history
+  const todayBriefing = briefings.length > 0 ? briefings[0] : null
+  const historyBriefings = briefings.slice(1)
   const filteredHistory =
     filter === 'all'
       ? historyBriefings

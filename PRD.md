@@ -1,7 +1,7 @@
 # Bosco — Product Requirements Document (MVP)
 
-**Version** : 1.2
-**Date** : February 27, 2026
+**Version** : 1.3
+**Date** : February 28, 2026
 **Author** : Sébastien Treille (skipper) + Claude (AI copilot)
 **Status** : Draft
 
@@ -140,19 +140,22 @@ Each skipper configures their boat during onboarding.
 │  Service Worker for offline cache       │
 │  Push Notifications (Web Push API)      │
 ├─────────────────────────────────────────┤
-│              API ROUTES                 │
+│              API ROUTES (9)             │
 │  /api/ai/proxy    → Claude API (server) │
 │  /api/ai/triggers → Eval triggers (cron)│
 │  /api/ai/route    → AI route proposals  │
+│  /api/ai/memory-extract → AI memory cron│
 │  /api/briefing    → Generate briefing   │
-│  /api/chat        → Copilot chat        │
+│  /api/chat        → Agentic chat (tools)│
+│  /api/push        → Push subscriptions  │
 │  /api/weather     → Weather proxy       │
 │  /api/tides       → Tides proxy         │
 ├─────────────────────────────────────────┤
 │            SUPABASE (BDD)               │
 │  users, boats, nav_profiles, voyages,   │
-│  briefings, logs, route, checklist,     │
-│  chat_history, boat_status              │
+│  briefings, logs, route_steps, checklist│
+│  chat_history, boat_status, reminders,  │
+│  push_subscriptions, ai_memory          │
 │  Supabase Auth (magic link email)       │
 │  Row Level Security (RLS per user)      │
 │  Realtime subscriptions                 │
@@ -284,33 +287,37 @@ Interactive map centered on current position with navigation context.
 
 **Content:**
 - Current position (boat marker)
-- Complete route Audierne → Nice (polyline)
+- Complete route polyline (from active voyage route_steps)
 - Past stages (grayed) / current (colored) / upcoming (dashed)
-- Fallback ports suggested by briefing (orange markers)
-- Danger zones (Raz de Sein, DST, Gulf of Lion — red semi-transparent polygons)
-- Day's nav waypoints
-- Nautical tiles if available (OpenSeaMap overlay)
+- Waypoint markers for each route step
+- OpenSeaMap nautical overlay (seamarks, buoys, lights, ports)
+
+**Tiles:**
+- Light mode: OpenStreetMap base + OpenSeaMap overlay
+- Dark mode: CartoDB Dark Matter base + OpenSeaMap overlay
 
 **Interactions:**
-- Tap on a port → info (VHF, harbormaster, fuel, shelter)
-- Tap on a danger zone → explanation (currents, constraints)
-- Tap on a stage → details (distance, estimated duration, notes)
+- Tap on a waypoint → popup with port name and route step info
 - "Center on me" button (phone GPS)
+- Zoom/pan with touch gestures
+
+**Note:** No hardcoded data (danger zones, port info, refuge ports were removed). All data comes from the database.
 
 **Offline:**
-- Tile cache for current zone + 100 NM around
+- Tile cache for current zone + 100 NM around (TODO)
 - Route and waypoints stored locally
 
 ### 6.3 Daily briefing
 
 The complete briefing generated each morning at 5am by AI.
 
-**Format:** Identical to format defined in scheduled task prompt (see section 7).
+**Format:** Markdown content rendered with react-markdown + custom `.prose-briefing` CSS.
 
 **Features:**
-- Today's briefing displayed at top
-- Scrollable history of previous briefings
-- Filter by verdict (GO / STANDBY / NO-GO)
+- Latest briefing displayed at top with full markdown content
+- Generation time displayed (HH:MM)
+- Delete briefing with confirmation
+- Scrollable history of all previous briefings below
 - Each briefing stored with metadata (position, destination, wind, sea, verdict)
 
 ### 6.4 Logbook
@@ -367,6 +374,18 @@ Conversational chat with AI copilot, contextualized with all voyage data.
 - Suggestion buttons ("Today's Briefing", "Fuel Status", "Next Stage")
 - Persistent conversation history
 - Works even in degraded mode (response based on cached data if no API connection)
+
+### 6.6 Reminders
+
+Scheduled reminders created by the AI or manually by the user.
+
+**Features:**
+- List of pending/upcoming reminders
+- Title + message + scheduled time
+- Optional recurrence (daily, weekly)
+- Status: pending / sent / dismissed
+- AI can create reminders via `create_reminder` tool during chat
+- Scoped to active voyage
 
 ### 6.7 Checklist
 
@@ -482,20 +501,42 @@ In addition to morning briefing, the mate monitors and intervenes when relevant.
 
 > Advanced triggers (zone change, provisions, fatigue, multi-day planning) are in [VISION.md](./VISION.md) for V1.5/V2.
 
-### 7.4 Contextual chat (talk to the mate)
+### 7.4 Contextual chat (talk to the mate) — AGENTIC
 
 **Architecture:**
-- Next.js API Route `/api/chat` → AI proxy
+- Next.js API Route `/api/chat` → AI proxy with native `tool_use`
 - Receives user message + user_id + voyage_id
-- Builds system context from Supabase (position, weather, briefing, logs, problems, route, trigger history — filtered by voyage)
-- Calls Claude via AI proxy (server-side key)
-- Streams response
+- Builds system context from Supabase (position, weather, briefing, logs, problems, route, trigger history, AI memory — filtered by voyage)
+- Calls Claude Haiku via AI proxy (server-side key) with 7 tools
+- Max 5 agentic turns per message (tool calls → tool results → next response)
+- Streams response with SSE (including tool call notifications)
 - Stores exchange in `chat_history` with user_id and voyage_id
 
-**Chat is natural** — the captain talks to his mate like to a human: "Where are we?", "What's the plan?", "I'm hesitant to leave". The mate has all the context.
+**7 AI Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `create_log_entry` | Create logbook entry, auto-updates boat_status |
+| `manage_checklist` | Add, check, uncheck, delete, edit, list checklist items |
+| `update_boat_status` | Update position, fuel, water, nav_status, problems |
+| `manage_route` | Update status, add/edit/delete route steps, list |
+| `create_reminder` | Schedule reminders with optional recurrence |
+| `get_weather` | Fetch weather forecast for specific coordinates |
+| `update_memory` | Update persistent AI memory (situation, boat, crew, preferences) |
+
+**Chat is natural and proactive** — the mate takes actions first, confirms after. The captain says "ajoute un arrêt à Sète" and the mate inserts the route step, then confirms.
 
 **Chat system prompt:**
-Identical to briefing prompt (skipper context, voyage, decision profile) + live data + recent trigger history.
+Includes skipper context, voyage, decision profile, live data, recent trigger history, and persistent AI memory.
+
+### 7.6 AI Memory system
+
+Persistent memory that allows the AI to remember context across sessions:
+- 4 memory slugs per voyage: `situation`, `boat`, `crew`, `preferences`
+- Updated via `update_memory` tool during chat interactions
+- Also extracted via `/api/ai/memory-extract` cron endpoint (analyzes recent chat + logs)
+- Memory injected into both briefing and chat system prompts as `## MÉMOIRE` section
+- Version history tracked in `ai_memory_versions` table
 
 ### 7.5 AI route generation (onboarding + settings)
 
@@ -687,6 +728,46 @@ CREATE TABLE boat_status (
   current_step_id UUID REFERENCES route_steps(id),
   nav_status TEXT CHECK (nav_status IN ('in_port', 'sailing', 'at_anchor', 'in_canal'))
 );
+
+-- Reminders (migration 002)
+CREATE TABLE reminders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  voyage_id UUID NOT NULL REFERENCES voyages(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  message TEXT,
+  remind_at TIMESTAMPTZ NOT NULL,
+  recurring TEXT, -- 'daily', 'weekly', etc.
+  status TEXT CHECK (status IN ('pending', 'sent', 'dismissed')) DEFAULT 'pending',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Push subscriptions (migration 003)
+CREATE TABLE push_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL UNIQUE,
+  keys JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- AI Memory (migration 006)
+CREATE TABLE ai_memory (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  voyage_id UUID NOT NULL REFERENCES voyages(id) ON DELETE CASCADE,
+  slug TEXT NOT NULL, -- 'situation', 'boat', 'crew', 'preferences'
+  content TEXT NOT NULL DEFAULT '',
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(voyage_id, slug)
+);
+
+CREATE TABLE ai_memory_versions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  memory_id UUID NOT NULL REFERENCES ai_memory(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
 ```
 
 ---
@@ -801,7 +882,7 @@ No structured public API. Strategy:
 | BYOAI option | Users can bring their own Claude API key |
 | BYOAI multi-provider | Claude + OpenAI support |
 | Advanced triggers | Zone change, provisions, fatigue, multi-day planning |
-| Mate memory | Learning skipper's habits and preferences |
+| ~~Mate memory~~ | ~~Learning skipper's habits and preferences~~ **(DONE in MVP — ai_memory system)** |
 | Route builder (advanced) | Drag-and-drop route editing, waypoint library, community-shared routes |
 | Port database | Pre-filled + crowdsource enrichment |
 | Float plan | Position sharing with loved ones |
@@ -847,11 +928,11 @@ No structured public API. Strategy:
 ### Navigation
 
 Tab bar at bottom with 5 tabs:
-1. 🏠 Dashboard
-2. 🗺️ Map
-3. 📝 Log
-4. 💬 Chat
-5. ☰ More (Briefings, Checklist, Route, Settings)
+1. 🏠 Accueil (Dashboard)
+2. 🧭 Route (Route progress + editing)
+3. 📝 Journal (Logbook)
+4. 💬 Chat (AI copilot)
+5. ☰ Plus (Briefings, Checklist, Map, Reminders, Settings)
 
 ---
 

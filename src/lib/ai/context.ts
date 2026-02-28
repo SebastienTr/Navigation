@@ -23,8 +23,10 @@ import type {
   BoatRow,
   NavProfileRow,
   MemoryDocs,
-  ReminderRow,
 } from '@/types'
+import { getEnhancedWeather } from '@/lib/weather/open-meteo'
+import { buildWeatherSummary, buildTideSummary } from '@/lib/weather/summary'
+import { getTides } from '@/lib/weather/worldtides'
 
 type Client = SupabaseClient<Database>
 
@@ -78,59 +80,43 @@ async function fetchMemoryDocs(
   return docs
 }
 
-// ── Base URL pour les appels API internes ──────────────────────────────────
+// ── Weather & Tide helpers ──────────────────────────────────────────────
 
-function getBaseUrl(): string {
-  // En production Vercel, utiliser VERCEL_URL
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
-  // Fallback sur le port Next.js par defaut
-  return `http://localhost:${process.env.PORT ?? 3000}`
+function buildSourceUrls(lat: number, lon: number): string[] {
+  return [
+    `https://www.windy.com/${lat.toFixed(2)}/${lon.toFixed(2)}?wind,waves`,
+    'https://marine.meteofrance.com/',
+    'https://www.meteoconsult.fr/meteo-marine/bulletin-cotier',
+    'https://marc.ifremer.fr/resultats/vagues/modeles_atlantique_nord_est',
+  ]
 }
 
-// ── Recuperation meteo via l'API interne ───────────────────────────────────
-
-async function fetchWeather(
+async function fetchEnhancedWeatherData(
   lat: number,
-  lon: number
+  lon: number,
+  label: string
 ): Promise<WeatherData | null> {
   try {
-    const params = new URLSearchParams({
-      lat: lat.toString(),
-      lon: lon.toString(),
-    })
-    const response = await fetch(
-      `${getBaseUrl()}/api/weather?${params}`,
-      { next: { revalidate: 1800 } } // Cache 30 min
-    )
-
-    if (!response.ok) return null
-    return (await response.json()) as WeatherData
-  } catch {
-    // Meteo indisponible — on continue sans
+    const raw = await getEnhancedWeather(lat, lon)
+    const summary = buildWeatherSummary(raw, label)
+    const sourceUrls = buildSourceUrls(lat, lon)
+    return { latitude: lat, longitude: lon, summary, sourceUrls }
+  } catch (err) {
+    console.warn('Enhanced weather fetch failed:', err)
     return null
   }
 }
 
-// ── Recuperation marees via l'API interne ──────────────────────────────────
-
-async function fetchTides(
+async function fetchTideData(
   lat: number,
-  lon: number
+  lon: number,
+  label: string
 ): Promise<TideData | null> {
   try {
-    const params = new URLSearchParams({
-      lat: lat.toString(),
-      lon: lon.toString(),
-    })
-    const response = await fetch(
-      `${getBaseUrl()}/api/tides?${params}`,
-      { next: { revalidate: 3600 } } // Cache 1h
-    )
-
-    if (!response.ok) return null
-    return (await response.json()) as TideData
+    const raw = await getTides(lat, lon)
+    if (!raw) return null
+    return { ...raw, summary: buildTideSummary(raw, label) }
   } catch {
-    // Marees indisponibles — on continue sans
     return null
   }
 }
@@ -180,15 +166,28 @@ export async function buildBriefingContext(
 
   // Recuperer meteo et marees si on a une position
   let weather: WeatherData | null = null
+  let weatherDestination: WeatherData | null = null
   let tides: TideData | null = null
 
   if (boatStatus?.current_lat && boatStatus?.current_lon) {
-    const [weatherResult, tidesResult] = await Promise.all([
-      fetchWeather(boatStatus.current_lat, boatStatus.current_lon),
-      fetchTides(boatStatus.current_lat, boatStatus.current_lon),
-    ])
-    weather = weatherResult
-    tides = tidesResult
+    const posLabel = boatStatus.current_position ?? `${boatStatus.current_lat.toFixed(2)}N, ${boatStatus.current_lon.toFixed(2)}E`
+
+    const fetches: Promise<unknown>[] = [
+      fetchEnhancedWeatherData(boatStatus.current_lat, boatStatus.current_lon, posLabel),
+      fetchTideData(boatStatus.current_lat, boatStatus.current_lon, posLabel),
+    ]
+
+    // Fetch destination weather if current step has coordinates
+    if (currentStep?.to_lat && currentStep?.to_lon) {
+      fetches.push(
+        fetchEnhancedWeatherData(currentStep.to_lat, currentStep.to_lon, currentStep.to_port ?? 'Destination')
+      )
+    }
+
+    const results = await Promise.all(fetches)
+    weather = results[0] as WeatherData | null
+    tides = results[1] as TideData | null
+    if (results[2]) weatherDestination = results[2] as WeatherData | null
   }
 
   return {
@@ -199,6 +198,7 @@ export async function buildBriefingContext(
     routeSteps,
     currentStep,
     weather,
+    weatherDestination,
     tides,
     checklist,
     memory,
@@ -239,15 +239,27 @@ export async function buildChatContext(
 
   // Recuperer meteo et marees si on a une position
   let weather: WeatherData | null = null
+  let weatherDestination: WeatherData | null = null
   let tides: TideData | null = null
 
   if (boatStatus?.current_lat && boatStatus?.current_lon) {
-    const [weatherResult, tidesResult] = await Promise.all([
-      fetchWeather(boatStatus.current_lat, boatStatus.current_lon),
-      fetchTides(boatStatus.current_lat, boatStatus.current_lon),
-    ])
-    weather = weatherResult
-    tides = tidesResult
+    const posLabel = boatStatus.current_position ?? `${boatStatus.current_lat.toFixed(2)}N, ${boatStatus.current_lon.toFixed(2)}E`
+
+    const fetches: Promise<unknown>[] = [
+      fetchEnhancedWeatherData(boatStatus.current_lat, boatStatus.current_lon, posLabel),
+      fetchTideData(boatStatus.current_lat, boatStatus.current_lon, posLabel),
+    ]
+
+    if (currentStep?.to_lat && currentStep?.to_lon) {
+      fetches.push(
+        fetchEnhancedWeatherData(currentStep.to_lat, currentStep.to_lon, currentStep.to_port ?? 'Destination')
+      )
+    }
+
+    const results = await Promise.all(fetches)
+    weather = results[0] as WeatherData | null
+    tides = results[1] as TideData | null
+    if (results[2]) weatherDestination = results[2] as WeatherData | null
   }
 
   return {
@@ -258,6 +270,7 @@ export async function buildChatContext(
     routeSteps,
     currentStep,
     weather,
+    weatherDestination,
     tides,
     checklist,
     latestBriefing,

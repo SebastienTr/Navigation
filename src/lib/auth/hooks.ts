@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from './context'
 import type { Database } from '@/lib/supabase/types'
@@ -75,6 +75,8 @@ export function useActiveVoyage(): UseActiveVoyageReturn {
   const [boatStatus, setBoatStatus] = useState<BoatStatusRow | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const initialLoadDone = useRef(false)
+
   const fetchActiveVoyage = useCallback(async () => {
     if (!user) {
       setVoyage(null)
@@ -85,7 +87,10 @@ export function useActiveVoyage(): UseActiveVoyageReturn {
       return
     }
 
-    setLoading(true)
+    // Only show loading skeleton on first load, not on refresh
+    if (!initialLoadDone.current) {
+      setLoading(true)
+    }
     const supabase = createClient()
 
     // Fetch the active voyage for this user
@@ -164,6 +169,7 @@ export function useActiveVoyage(): UseActiveVoyageReturn {
       setBoatStatus(boatStatusResult.data)
     }
 
+    initialLoadDone.current = true
     setLoading(false)
   }, [user])
 

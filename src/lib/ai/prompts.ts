@@ -201,11 +201,17 @@ ${formatRouteSummary(ctx)}
 ## JOURNAL DE BORD RÉCENT
 ${formatLogs(ctx.latestLogs)}
 
-## MÉTÉO
+## MÉTÉO — POSITION ACTUELLE
 ${ctx.weather?.summary ?? 'Données météo indisponibles.'}
+
+${ctx.weatherDestination ? `## MÉTÉO — DESTINATION (${ctx.currentStep?.to_port ?? 'Étape en cours'})
+${ctx.weatherDestination.summary}` : ''}
 
 ## MARÉES
 ${ctx.tides?.summary ?? 'Données de marée indisponibles.'}
+
+## SOURCES MÉTÉO (à inclure en fin de briefing)
+${[...(ctx.weather?.sourceUrls ?? []), ...(ctx.weatherDestination?.sourceUrls ?? [])].map((u) => `- ${u}`).join('\n')}
 
 ## CHECKLIST
 ${formatChecklist(ctx.checklist)}
@@ -252,7 +258,14 @@ Produis un briefing structuré en markdown avec les sections suivantes:
 - Actions prioritaires avant départ
 - Points de vigilance pour la journée
 
-IMPORTANT: Écris TOUJOURS en français. Utilise le système métrique et les unités nautiques (noeuds pour le vent et la vitesse, milles nautiques pour les distances).`
+### Sources & Vérification
+- [Lien Windy pour la zone](url)
+- [Météo France Marine](url)
+- [Meteoconsult bulletin côtier](url)
+- [IFREMER vagues](url)
+
+IMPORTANT: Écris TOUJOURS en français. Utilise le système métrique et les unités nautiques (noeuds pour le vent et la vitesse, milles nautiques pour les distances).
+IMPORTANT: Inclus TOUJOURS les liens sources en fin de briefing dans la section "Sources & Vérification". Le capitaine doit pouvoir cliquer pour vérifier les données. Formate-les en liens markdown cliquables avec les URLs fournies dans la section SOURCES MÉTÉO ci-dessus.`
 }
 
 // ── CHAT SYSTEM PROMPT ─────────────────────────────────────────────────────
@@ -287,8 +300,11 @@ ${formatRouteSummary(ctx)}
 ### Journal récent
 ${formatLogs(ctx.latestLogs)}
 
-### Météo
+### Météo — Position actuelle
 ${ctx.weather?.summary ?? 'Données météo indisponibles.'}
+
+${ctx.weatherDestination ? `### Météo — Destination (${ctx.currentStep?.to_port ?? 'Étape en cours'})
+${ctx.weatherDestination.summary}` : ''}
 
 ### Marées
 ${ctx.tides?.summary ?? 'Données de marée indisponibles.'}

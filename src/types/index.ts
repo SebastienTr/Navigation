@@ -41,27 +41,13 @@ export interface NavigatorProfile {
 
 // ── Meteo ──────────────────────────────────────────────────────────────────
 
-export interface WeatherHourly {
-  time: string
-  windSpeed: number       // km/h
-  windDirection: number   // degres
-  windGusts: number       // km/h
-  waveHeight: number      // metres
-  wavePeriod: number      // secondes
-  visibility: number      // metres
-  temperature: number     // celsius
-  precipitation: number   // mm
-  cloudCover: number      // pourcentage
-  weatherCode: number
-}
-
 export interface WeatherData {
   latitude: number
   longitude: number
-  timezone: string
-  hourly: WeatherHourly[]
   /** Resume textuel pour injection dans le prompt */
   summary: string
+  /** Liens vers des sources meteo externes pour verification */
+  sourceUrls: string[]
 }
 
 // ── Marees ─────────────────────────────────────────────────────────────────
@@ -78,7 +64,7 @@ export interface TideHeight {
 }
 
 export interface TideData {
-  station: string
+  station: string | null
   latitude: number
   longitude: number
   extremes: TideExtreme[]
@@ -133,6 +119,7 @@ export interface BriefingContext {
   routeSteps: RouteStepRow[]
   currentStep: RouteStepRow | null
   weather: WeatherData | null
+  weatherDestination: WeatherData | null
   tides: TideData | null
   checklist: ChecklistRow[]
   memory: MemoryDocs | null
@@ -147,6 +134,7 @@ export interface ChatContext {
   routeSteps: RouteStepRow[]
   currentStep: RouteStepRow | null
   weather: WeatherData | null
+  weatherDestination: WeatherData | null
   tides: TideData | null
   checklist: ChecklistRow[]
   latestBriefing: BriefingRow | null

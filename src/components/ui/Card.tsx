@@ -9,9 +9,12 @@ interface CardProps {
 }
 
 export function Card({ children, className = '', onClick }: CardProps) {
+  const hasCustomBg = /\bbg-/.test(className)
   return (
     <div
-      className={`rounded-lg border border-gray-200/60 bg-white p-4 dark:border-gray-800/40 dark:bg-gray-900 ${
+      className={`rounded-lg border border-gray-200/60 p-4 dark:border-gray-800/40 ${
+        hasCustomBg ? '' : 'bg-white dark:bg-gray-900'
+      } ${
         onClick
           ? 'cursor-pointer transition-colors active:bg-gray-50 dark:active:bg-gray-800'
           : ''
