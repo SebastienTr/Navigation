@@ -63,11 +63,60 @@ interface RawRouteProposal {
   steps: RawRouteStep[]
 }
 
+/**
+ * Try to repair truncated JSON by closing unclosed brackets/braces.
+ * Handles the common case where max_tokens truncates a JSON array mid-element.
+ */
+function repairTruncatedJSON(text: string): string {
+  // Find the last valid array element boundary (ends with })
+  // Then close all open brackets
+  let repaired = text.trimEnd()
+
+  // Remove trailing comma if present
+  if (repaired.endsWith(',')) repaired = repaired.slice(0, -1)
+
+  // Remove incomplete object at the end (e.g. `{ "order_num": 5, "name": "So`)
+  const lastCompleteObj = repaired.lastIndexOf('},')
+  const lastCompleteArr = repaired.lastIndexOf('}]')
+  const lastComplete = Math.max(lastCompleteObj, lastCompleteArr)
+
+  if (lastComplete > repaired.length * 0.5) {
+    // Cut at the last complete object boundary
+    repaired = repaired.slice(0, lastComplete + 1)
+  }
+
+  // Count open brackets/braces and close them
+  let openBraces = 0
+  let openBrackets = 0
+  let inString = false
+  let escaped = false
+
+  for (const ch of repaired) {
+    if (escaped) { escaped = false; continue }
+    if (ch === '\\') { escaped = true; continue }
+    if (ch === '"') { inString = !inString; continue }
+    if (inString) continue
+    if (ch === '{') openBraces++
+    else if (ch === '}') openBraces--
+    else if (ch === '[') openBrackets++
+    else if (ch === ']') openBrackets--
+  }
+
+  // Close unclosed brackets/braces in the right order
+  // We need to close inner structures first (arrays before objects typically)
+  for (let i = 0; i < openBrackets; i++) repaired += ']'
+  for (let i = 0; i < openBraces; i++) repaired += '}'
+
+  return repaired
+}
+
 function extractJSON(text: string): { routes: RawRouteProposal[] } {
+  // Direct parse
   try {
     return JSON.parse(text)
   } catch { /* continue */ }
 
+  // Try code block extraction
   const jsonBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/)
   if (jsonBlockMatch?.[1]) {
     try {
@@ -75,10 +124,27 @@ function extractJSON(text: string): { routes: RawRouteProposal[] } {
     } catch { /* continue */ }
   }
 
+  // Try extracting between first { and last }
   const firstBrace = text.indexOf('{')
   const lastBrace = text.lastIndexOf('}')
   if (firstBrace !== -1 && lastBrace > firstBrace) {
-    return JSON.parse(text.slice(firstBrace, lastBrace + 1))
+    try {
+      return JSON.parse(text.slice(firstBrace, lastBrace + 1))
+    } catch { /* continue — might be truncated */ }
+  }
+
+  // Last resort: try to repair truncated JSON
+  if (firstBrace !== -1) {
+    const truncated = text.slice(firstBrace)
+    try {
+      const repaired = repairTruncatedJSON(truncated)
+      const parsed = JSON.parse(repaired)
+      log.warn('route', 'Used repaired truncated JSON', {
+        original_length: truncated.length,
+        repaired_length: repaired.length,
+      })
+      return parsed
+    } catch { /* continue */ }
   }
 
   throw new Error('Aucun JSON valide trouvé dans la réponse de Claude')
@@ -229,7 +295,7 @@ export async function POST(request: NextRequest) {
         try {
           const stream = client.messages.stream({
             model: MODEL_SONNET,
-            max_tokens: 16384,
+            max_tokens: 32768,
             system: systemPrompt,
             messages: [{ role: 'user', content: userMessage }],
           })

@@ -519,7 +519,9 @@ ${params.profile.maxContinuousHours ? `Heures continues max: ${params.profile.ma
 - Ports de refuge en cas de mauvais temps
 
 ## FORMAT DE SORTIE
-Réponds UNIQUEMENT avec un JSON valide, sans texte autour. Le format est:
+Réponds UNIQUEMENT avec un JSON valide, sans texte autour.
+IMPORTANT : Sois CONCIS dans les notes de chaque étape (1 phrase max). Pour les longs trajets (>10 étapes), regroupe les passages similaires en étapes plus longues plutôt que de détailler chaque port intermédiaire. Vise maximum 12-15 étapes par route.
+Le format est:
 
 ${isCustom ? `{
   "routes": [
