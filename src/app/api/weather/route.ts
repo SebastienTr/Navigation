@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCombinedWeather } from '@/lib/weather/open-meteo'
+import { getCombinedWeather, getEnhancedWeather } from '@/lib/weather/open-meteo'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl
     const latStr = searchParams.get('lat')
     const lonStr = searchParams.get('lon')
+    const mode = searchParams.get('mode') ?? 'raw'
 
     if (!latStr || !lonStr) {
       return NextResponse.json(
@@ -31,7 +32,9 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const weather = await getCombinedWeather(lat, lon)
+    const weather = mode === 'enhanced'
+      ? await getEnhancedWeather(lat, lon)
+      : await getCombinedWeather(lat, lon)
 
     return NextResponse.json(weather, {
       headers: {

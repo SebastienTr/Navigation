@@ -45,30 +45,32 @@ function fuelPercent(fuelTank: string | null): number | null {
 
 // ── Rule 1: Weather Change ────────────────────────────────────────────────
 // Wind forecast changes > 10 kn vs morning briefing
+// Note: This rule compares the weather summary text against the briefing.
+// It extracts wind numbers from both text sources for comparison.
 
 export function checkWeatherChange(ctx: TriggerRuleContext): TriggerResult {
   if (!ctx.latestBriefing || !ctx.currentWeather) {
     return { fired: false, details: 'Donnees meteo ou briefing indisponibles.' }
   }
 
-  // Compare briefing wind data with current forecast
+  // Compare briefing wind data with current weather summary
   const briefingWind = ctx.latestBriefing.wind
   if (!briefingWind) {
     return { fired: false, details: 'Pas de donnees de vent dans le briefing.' }
   }
 
-  // Extract max wind from current forecast (next 12h)
-  const now = new Date()
-  const next12h = ctx.currentWeather.hourly.filter((h) => {
-    const t = new Date(h.time)
-    return t >= now && t <= new Date(now.getTime() + 12 * 60 * 60 * 1000)
-  })
-
-  if (next12h.length === 0) {
-    return { fired: false, details: 'Pas de previsions dans les 12 prochaines heures.' }
+  // Try to extract wind numbers from the weather summary
+  const summary = ctx.currentWeather.summary ?? ''
+  const summaryWindMatch = summary.match(
+    /(?:Vent|Rafales\s*max)\s*[:.]?\s*(\d+)(?:\s*-\s*(\d+))?\s*(?:kn|noeuds|nds)/i
+  )
+  if (!summaryWindMatch) {
+    return { fired: false, details: 'Impossible de parser le vent du resume meteo.' }
   }
 
-  const maxGusts = Math.max(...next12h.map((h) => h.windGusts))
+  const currentMaxWind = summaryWindMatch[2]
+    ? parseInt(summaryWindMatch[2], 10)
+    : parseInt(summaryWindMatch[1], 10)
 
   // Try to extract a wind number from the briefing text (e.g. "15-20 kn")
   const windMatch = briefingWind.match(
@@ -82,18 +84,18 @@ export function checkWeatherChange(ctx: TriggerRuleContext): TriggerResult {
     ? parseInt(windMatch[2], 10)
     : parseInt(windMatch[1], 10)
 
-  const diff = Math.abs(maxGusts - briefingMaxWind)
+  const diff = Math.abs(currentMaxWind - briefingMaxWind)
 
   if (diff > 10) {
     return {
       fired: true,
-      details: `Rafales prevues : ${Math.round(maxGusts)} kn (briefing du matin : ${briefingMaxWind} kn). Ecart : ${Math.round(diff)} kn.`,
+      details: `Vent actuel : ${currentMaxWind} kn (briefing du matin : ${briefingMaxWind} kn). Ecart : ${Math.round(diff)} kn.`,
     }
   }
 
   return {
     fired: false,
-    details: `Vent stable. Rafales : ${Math.round(maxGusts)} kn, briefing : ${briefingMaxWind} kn.`,
+    details: `Vent stable. Actuel : ${currentMaxWind} kn, briefing : ${briefingMaxWind} kn.`,
   }
 }
 

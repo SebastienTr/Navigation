@@ -354,6 +354,7 @@ export default function BriefingsPage() {
       .eq('voyage_id', voyage.id)
       .eq('user_id', user.id)
       .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
       .returns<BriefingRow[]>()
 
     if (error) {

@@ -673,12 +673,15 @@ function NewVoyageForm({
       return
     }
 
-    // Initialize boat_status for the voyage
+    // Initialize boat_status with departure coordinates from first route step
+    const firstStep = confirmedRoute?.steps?.[0]
     const { error: statusError } = await supabase
       .from('boat_status')
       .insert({
         voyage_id: voyage.id,
         current_position: departurePort || null,
+        current_lat: firstStep?.from_lat ?? null,
+        current_lon: firstStep?.from_lon ?? null,
         nav_status: 'in_port' as const,
         fuel_tank: 'full',
         water: 'full',
@@ -708,12 +711,22 @@ function NewVoyageForm({
         status: 'to_do' as const,
       }))
 
-      const { error: stepsError } = await supabase
+      const { data: insertedSteps, error: stepsError } = await supabase
         .from('route_steps')
         .insert(routeStepsPayload)
+        .select('id, order_num')
 
       if (stepsError) {
         console.error('Erreur création route_steps:', stepsError.message)
+      }
+
+      // Set current_step_id to the first route step
+      const firstInserted = insertedSteps?.find((s) => s.order_num === 1)
+      if (firstInserted) {
+        await supabase
+          .from('boat_status')
+          .update({ current_step_id: firstInserted.id })
+          .eq('voyage_id', voyage.id)
       }
     }
 

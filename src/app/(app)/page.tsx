@@ -7,7 +7,6 @@ import {
   Wind,
   Waves,
   Eye,
-  Thermometer,
   Droplets,
   Fuel,
   Anchor,
@@ -32,6 +31,7 @@ type BriefingRow = Database['public']['Tables']['briefings']['Row']
 type RouteStepRow = Database['public']['Tables']['route_steps']['Row']
 type LogRow = Database['public']['Tables']['logs']['Row']
 type ReminderRow = Database['public']['Tables']['reminders']['Row']
+type BoatRow = Database['public']['Tables']['boats']['Row']
 
 const MiniMapDynamic = dynamic(() => import('@/components/map/MiniMapView'), {
   ssr: false,
@@ -50,6 +50,15 @@ const CONFIDENCE_LABELS: Record<string, string> = {
   high: 'Confiance haute',
   medium: 'Confiance moyenne',
   low: 'Confiance faible',
+}
+
+// ── Nav status labels ─────────────────────────────────────────────────────
+
+const NAV_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  in_port: { label: 'Au port', color: 'bg-blue-500' },
+  sailing: { label: 'En navigation', color: 'bg-green-500' },
+  at_anchor: { label: 'Mouillage', color: 'bg-amber-500' },
+  in_canal: { label: 'Canal', color: 'bg-purple-500' },
 }
 
 // ── Fuel/Water level mapping ──────────────────────────────────────────────
@@ -83,16 +92,105 @@ function getLevelColor(percent: number): string {
 interface WeatherCurrent {
   windSpeed: number
   windDirection: number
-  windGusts: number
   waveHeight: number
+  wavePeriod: number
   visibility: number
-  temperature: number
+}
+
+interface CombinedWeatherResponse {
+  marine: {
+    hourly: {
+      time: string[]
+      wave_height: number[]
+      wave_period: number[]
+    }
+  }
+  forecast: {
+    hourly: {
+      time: string[]
+      wind_speed_10m: number[]
+      wind_direction_10m: number[]
+      visibility: number[]
+    }
+  }
+}
+
+function parseCurrentWeather(data: CombinedWeatherResponse): WeatherCurrent | null {
+  const now = Date.now()
+  // Find closest hour index in forecast
+  const times = data.forecast.hourly.time
+  let idx = 0
+  let minDiff = Infinity
+  for (let i = 0; i < times.length; i++) {
+    const diff = Math.abs(new Date(times[i]).getTime() - now)
+    if (diff < minDiff) {
+      minDiff = diff
+      idx = i
+    }
+  }
+
+  // Find closest marine hour
+  const marineTimes = data.marine.hourly.time
+  let marineIdx = 0
+  let marineMinDiff = Infinity
+  for (let i = 0; i < marineTimes.length; i++) {
+    const diff = Math.abs(new Date(marineTimes[i]).getTime() - now)
+    if (diff < marineMinDiff) {
+      marineMinDiff = diff
+      marineIdx = i
+    }
+  }
+
+  return {
+    windSpeed: data.forecast.hourly.wind_speed_10m[idx] ?? 0,
+    windDirection: data.forecast.hourly.wind_direction_10m[idx] ?? 0,
+    visibility: data.forecast.hourly.visibility[idx] ?? 0,
+    waveHeight: data.marine.hourly.wave_height[marineIdx] ?? 0,
+    wavePeriod: data.marine.hourly.wave_period[marineIdx] ?? 0,
+  }
 }
 
 function windDirectionLabel(degrees: number): string {
   const directions = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO']
   const index = Math.round(degrees / 45) % 8
   return directions[index]
+}
+
+// ── Extract briefing summary ──────────────────────────────────────────────
+
+function extractBriefingSummary(content: string | null): string | null {
+  if (!content) return null
+  // Find the explanation text after the VERDICT line
+  const verdictMatch = content.match(/##\s*VERDICT[^\n]*\n+(?:\*\*[^*]+\*\*[^\n]*\n+)?([\s\S]+?)(?=\n##|\n---|\n\n\n|$)/)
+  if (!verdictMatch?.[1]) return null
+  let summary = verdictMatch[1].trim()
+  // Remove markdown bold/italic
+  summary = summary.replace(/\*\*/g, '').replace(/\*/g, '')
+  if (summary.length > 150) {
+    summary = summary.slice(0, 147) + '...'
+  }
+  return summary || null
+}
+
+// ── Format ETA ────────────────────────────────────────────────────────────
+
+function formatEta(distanceNm: number | null, distanceKm: number | null, avgSpeedKn: number | null): string | null {
+  const nm = distanceNm ?? 0
+  const km = distanceKm ?? 0
+  // For maritime legs, use NM and speed in knots
+  // For canal/river legs, estimate ~6 km/h
+  const hoursNm = avgSpeedKn && nm > 0 ? nm / avgSpeedKn : 0
+  const hoursKm = km > 0 ? km / 6 : 0
+  const totalHours = hoursNm + hoursKm
+  if (totalHours <= 0) return null
+
+  const totalRounded = Math.round(totalHours)
+  if (totalRounded < 24) {
+    return `~${totalRounded}h`
+  }
+  const days = Math.floor(totalRounded / 24)
+  const hours = totalRounded % 24
+  return hours > 0 ? `~${days}j ${hours}h` : `~${days}j`
 }
 
 // ── PushPermissionBanner ─────────────────────────────────────────────────
@@ -152,6 +250,21 @@ function PushPermissionBanner() {
         </button>
       </div>
     </Card>
+  )
+}
+
+// ── ActiveProblemsBar ─────────────────────────────────────────────────────
+
+function ActiveProblemsBar({ problems }: { problems: string[] | null }) {
+  if (!problems || problems.length === 0) return null
+
+  return (
+    <div className="flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-white">
+      <AlertTriangle size={14} className="shrink-0" />
+      <p className="truncate text-xs font-medium">
+        {problems.join(' · ')}
+      </p>
+    </div>
   )
 }
 
@@ -225,11 +338,11 @@ function MateMessages({
   if (alerts.length === 0) return null
 
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+    <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
       {alerts.map((alert) => (
         <span
           key={alert.key}
-          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${alert.color}`}
+          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${alert.color}`}
         >
           {alert.icon}
           {alert.message}
@@ -251,7 +364,7 @@ function VerdictCard({
   const router = useRouter()
 
   if (loading) {
-    return <Skeleton className="h-[120px]" />
+    return <Skeleton className="h-[140px]" />
   }
 
   // No briefing at all → don't render (MateMessages handles the notification)
@@ -281,13 +394,17 @@ function VerdictCard({
   }
 
   const colors = VERDICT_COLORS[briefing.verdict]
+  const summary = extractBriefingSummary(briefing.content)
 
   return (
     <Card
-      className={`${colors.bg} ${colors.text} flex min-h-[120px] flex-col items-center justify-center gap-2 shadow-md`}
+      className={`${colors.bg} ${colors.text} relative flex flex-col items-center gap-1.5 py-4 shadow-md`}
       onClick={() => router.push('/briefings')}
     >
-      <p className="text-sm font-medium uppercase tracking-wider opacity-90">
+      <span className="absolute right-3 top-2 text-[10px] opacity-70">
+        {timeAgo(briefing.created_at)}
+      </span>
+      <p className="text-xs font-medium uppercase tracking-wider opacity-90">
         Verdict du jour
       </p>
       <p className="text-4xl font-black tracking-tight">{briefing.verdict}</p>
@@ -296,15 +413,17 @@ function VerdictCard({
           {CONFIDENCE_LABELS[briefing.confidence] ?? briefing.confidence}
         </span>
       )}
+      {summary && (
+        <p className="mt-1 max-w-[280px] text-center text-xs leading-snug opacity-90">
+          {summary}
+        </p>
+      )}
       {briefing.destination && (
-        <p className="mt-1 text-sm opacity-90">
-          <MapPin size={14} className="mr-1 inline" />
+        <p className="mt-1 text-xs opacity-90">
+          <MapPin size={12} className="mr-1 inline" />
           {briefing.destination}
         </p>
       )}
-      <p className="mt-1 text-[10px] opacity-70">
-        {timeAgo(briefing.created_at)}
-      </p>
     </Card>
   )
 }
@@ -329,13 +448,13 @@ function WeatherSummary({
 
     try {
       const res = await fetch(
-        `/api/weather?lat=${lat}&lon=${lon}&hours=1`
+        `/api/weather?lat=${lat}&lon=${lon}`
       )
       if (!res.ok) throw new Error('Weather fetch failed')
 
-      const data: { hourly: WeatherCurrent[] } = await res.json()
-      if (data.hourly && data.hourly.length > 0) {
-        setWeather(data.hourly[0])
+      const data = (await res.json()) as CombinedWeatherResponse
+      if (data.forecast?.hourly && data.marine?.hourly) {
+        setWeather(parseCurrentWeather(data))
       }
     } catch (err) {
       console.error('Failed to fetch weather:', err)
@@ -349,7 +468,7 @@ function WeatherSummary({
   }, [fetchWeather])
 
   if (loading) {
-    return <Skeleton className="h-[120px]" />
+    return <Skeleton className="h-[72px]" />
   }
 
   if (!weather) {
@@ -363,40 +482,28 @@ function WeatherSummary({
   }
 
   return (
-    <Card>
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-        Météo actuelle
-      </h3>
-      <div className="grid grid-cols-3 gap-3">
+    <Card className="py-3">
+      <div className="grid grid-cols-3 gap-2">
         <WeatherMetric
-          icon={<Wind size={16} />}
+          icon={<Wind size={14} />}
           label="Vent"
-          value={`${Math.round(weather.windSpeed)} km/h`}
+          value={`${Math.round(weather.windSpeed)} kn`}
           sub={windDirectionLabel(weather.windDirection)}
         />
         <WeatherMetric
-          icon={<Wind size={16} />}
-          label="Rafales"
-          value={`${Math.round(weather.windGusts)} km/h`}
-        />
-        <WeatherMetric
-          icon={<Waves size={16} />}
+          icon={<Waves size={14} />}
           label="Vagues"
           value={`${weather.waveHeight.toFixed(1)} m`}
+          sub={weather.wavePeriod > 0 ? `${Math.round(weather.wavePeriod)}s` : undefined}
         />
         <WeatherMetric
-          icon={<Eye size={16} />}
+          icon={<Eye size={14} />}
           label="Visibilité"
           value={
             weather.visibility >= 1000
               ? `${(weather.visibility / 1000).toFixed(0)} km`
               : `${Math.round(weather.visibility)} m`
           }
-        />
-        <WeatherMetric
-          icon={<Thermometer size={16} />}
-          label="Température"
-          value={`${Math.round(weather.temperature)}°C`}
         />
       </div>
     </Card>
@@ -415,9 +522,9 @@ function WeatherMetric({
   sub?: string
 }) {
   return (
-    <div className="flex flex-col items-center gap-1 rounded-lg bg-gray-50 p-2 dark:bg-gray-800">
+    <div className="flex flex-col items-center gap-0.5 rounded-lg bg-gray-50 px-2 py-1.5 dark:bg-gray-800">
       <div className="text-gray-400 dark:text-gray-500">{icon}</div>
-      <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
+      <p className="text-[10px] text-gray-500 dark:text-gray-400">{label}</p>
       <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
         {value}
       </p>
@@ -478,8 +585,8 @@ function LevelsBar({
   }
 
   return (
-    <Card>
-      <div className="mb-3 flex items-center justify-between">
+    <Card className="py-3">
+      <div className="mb-2 flex items-center justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
           Niveaux
         </h3>
@@ -493,7 +600,7 @@ function LevelsBar({
       </div>
 
       {editing ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <QuickLevelSelector
             icon={<Fuel size={16} />}
             label="Carburant"
@@ -521,27 +628,25 @@ function LevelsBar({
           </button>
         </div>
       ) : (
-        <>
-          <div className="space-y-3">
-            <LevelRow
-              icon={<Fuel size={16} />}
-              label="Carburant"
-              percent={fuelPercent}
-              displayValue={LEVEL_LABELS[fuelTank ?? ''] ?? '—'}
-              extra={
-                jerricans !== null && jerricans > 0
-                  ? `+ ${jerricans} jerricans`
-                  : undefined
-              }
-            />
-            <LevelRow
-              icon={<Droplets size={16} />}
-              label="Eau douce"
-              percent={waterPercent}
-              displayValue={LEVEL_LABELS[water ?? ''] ?? '—'}
-            />
-          </div>
-        </>
+        <div className="space-y-2">
+          <LevelRow
+            icon={<Fuel size={16} />}
+            label="Carburant"
+            percent={fuelPercent}
+            displayValue={LEVEL_LABELS[fuelTank ?? ''] ?? '—'}
+            extra={
+              jerricans !== null && jerricans > 0
+                ? `+ ${jerricans} jerr.`
+                : undefined
+            }
+          />
+          <LevelRow
+            icon={<Droplets size={16} />}
+            label="Eau douce"
+            percent={waterPercent}
+            displayValue={LEVEL_LABELS[water ?? ''] ?? '—'}
+          />
+        </div>
       )}
     </Card>
   )
@@ -601,7 +706,7 @@ function LevelRow({
     <div className="flex items-center gap-3">
       <div className="text-gray-400 dark:text-gray-500">{icon}</div>
       <div className="flex-1">
-        <div className="mb-1 flex items-baseline justify-between">
+        <div className="mb-0.5 flex items-baseline justify-between">
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
             {label}
           </span>
@@ -614,7 +719,7 @@ function LevelRow({
             )}
           </span>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+        <div className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
           <div
             className={`h-full rounded-full transition-all ${getLevelColor(percent)}`}
             style={{ width: `${percent}%` }}
@@ -630,9 +735,11 @@ function LevelRow({
 function RouteProgress({
   steps,
   loading,
+  boat,
 }: {
   steps: RouteStepRow[]
   loading: boolean
+  boat: BoatRow | null
 }) {
   const router = useRouter()
 
@@ -652,50 +759,59 @@ function RouteProgress({
 
   const doneCount = steps.filter((s) => s.status === 'done').length
   const currentStep = steps.find((s) => s.status === 'in_progress') ?? null
+  const nextStep = currentStep
+    ? steps.find((s) => s.status === 'to_do')
+    : null
   const totalSteps = steps.length
   const progressPercent =
     totalSteps > 0 ? Math.round((doneCount / totalSteps) * 100) : 0
 
-  const remainingNm = steps
-    .filter((s) => s.status === 'to_do' || s.status === 'in_progress')
-    .reduce((sum, s) => sum + (s.distance_nm ?? 0), 0)
+  const remaining = steps.filter((s) => s.status === 'to_do' || s.status === 'in_progress')
+  const remainingNm = remaining.reduce((sum, s) => sum + (s.distance_nm ?? 0), 0)
+  const remainingKm = remaining.reduce((sum, s) => sum + (s.distance_km ?? 0), 0)
+  // Unified total: convert km to NM (1 NM = 1.852 km)
+  const totalRemainingNm = Math.round(remainingNm + remainingKm / 1.852)
 
-  const remainingKm = steps
-    .filter((s) => s.status === 'to_do' || s.status === 'in_progress')
-    .reduce((sum, s) => sum + (s.distance_km ?? 0), 0)
+  // ETA for current/next step, not entire voyage
+  const etaStep = currentStep ?? steps.find((s) => s.status === 'to_do') ?? null
+  const stepEta = etaStep
+    ? formatEta(etaStep.distance_nm, etaStep.distance_km, boat?.avg_speed_kn ?? null)
+    : null
 
   return (
     <Card onClick={() => router.push('/route')}>
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-        Itinéraire
-      </h3>
-      {currentStep && (
+      {etaStep && (
         <div className="mb-2">
           <div className="flex items-center gap-2">
             <Anchor size={14} className="text-blue-500" />
             <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-              {currentStep.name}
+              {etaStep.from_port} → {etaStep.to_port}
             </p>
           </div>
-          {currentStep.phase && (
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-              Phase : {currentStep.phase}
-            </p>
-          )}
+          <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-xs text-gray-500 dark:text-gray-400">
+            {(etaStep.distance_nm ?? 0) > 0 && (
+              <span>{Math.round(etaStep.distance_nm!)} NM</span>
+            )}
+            {(etaStep.distance_km ?? 0) > 0 && (
+              <span>{Math.round(etaStep.distance_km!)} km</span>
+            )}
+            {stepEta && <span>· {stepEta}</span>}
+            {etaStep.phase && (
+              <span>· {etaStep.phase}</span>
+            )}
+          </div>
         </div>
       )}
+
       <div className="mb-1 flex items-baseline justify-between">
         <span className="text-xs text-gray-500 dark:text-gray-400">
           Étape {doneCount + (currentStep ? 1 : 0)}/{totalSteps}
         </span>
         <span className="text-xs text-gray-500 dark:text-gray-400">
-          {remainingNm > 0 && `${Math.round(remainingNm)} NM`}
-          {remainingNm > 0 && remainingKm > 0 && ' + '}
-          {remainingKm > 0 && `${Math.round(remainingKm)} km`}
-          {remainingNm === 0 && remainingKm === 0 && 'Terminé'}
+          {totalRemainingNm > 0 ? `${totalRemainingNm} NM restants` : 'Terminé'}
         </span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+      <div className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
         <div
           className="h-full rounded-full bg-blue-500 transition-all"
           style={{ width: `${progressPercent}%` }}
@@ -769,7 +885,7 @@ function usePullToRefresh(onRefresh: () => Promise<void>) {
 
 export default function DashboardPage() {
   const { user } = useAuth()
-  const { voyage, boatStatus, loading, refresh } = useActiveVoyage()
+  const { voyage, boat, boatStatus, loading, refresh } = useActiveVoyage()
   const { containerRef, pullDistance, refreshing } = usePullToRefresh(refresh)
 
   const [briefing, setBriefing] = useState<BriefingRow | null>(null)
@@ -861,10 +977,10 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="space-y-3 p-4">
+      <div className="space-y-2 p-4">
         <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-[120px]" />
-        <Skeleton className="h-[120px]" />
+        <Skeleton className="h-[140px]" />
+        <Skeleton className="h-[72px]" />
         <Skeleton className="h-[80px]" />
         <Skeleton className="h-[100px]" />
         <Skeleton className="h-40" />
@@ -895,6 +1011,10 @@ export default function DashboardPage() {
     ? briefing.created_at.slice(0, 10) === today
     : false
 
+  const navStatus = boatStatus?.nav_status
+    ? NAV_STATUS_CONFIG[boatStatus.nav_status]
+    : null
+
   return (
     <div ref={containerRef} className="relative">
       {/* Pull-to-refresh indicator */}
@@ -914,11 +1034,20 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="space-y-3 p-4">
-        <header className="mb-1">
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-            {voyage.name}
-          </h1>
+      <div className="space-y-2 p-4">
+        {/* Header — compacté + nav_status */}
+        <header>
+          <div className="flex items-center justify-between">
+            <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">
+              {voyage.name}
+            </h1>
+            {navStatus && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                <span className={`inline-block h-2 w-2 rounded-full ${navStatus.color}`} />
+                {navStatus.label}
+              </span>
+            )}
+          </div>
           {boatStatus?.current_position && (
             <p className="text-xs text-gray-500 dark:text-gray-400">
               <MapPin size={12} className="mr-0.5 inline" />
@@ -934,6 +1063,9 @@ export default function DashboardPage() {
 
         <PushPermissionBanner />
 
+        {/* ActiveProblemsBar */}
+        <ActiveProblemsBar problems={boatStatus?.active_problems ?? null} />
+
         <VerdictCard briefing={briefing} loading={briefingLoading} />
 
         <MateMessages
@@ -944,9 +1076,11 @@ export default function DashboardPage() {
         />
 
         <WeatherSummary
-          lat={boatStatus?.current_lat ?? null}
-          lon={boatStatus?.current_lon ?? null}
+          lat={boatStatus?.current_lat ?? routeSteps[0]?.from_lat ?? null}
+          lon={boatStatus?.current_lon ?? routeSteps[0]?.from_lon ?? null}
         />
+
+        <RouteProgress steps={routeSteps} loading={routeLoading} boat={boat} />
 
         <LevelsBar
           fuelTank={boatStatus?.fuel_tank ?? null}
@@ -955,8 +1089,6 @@ export default function DashboardPage() {
           voyageId={voyage.id}
           onUpdated={refresh}
         />
-
-        <RouteProgress steps={routeSteps} loading={routeLoading} />
 
         <Card onClick={() => { window.location.href = '/map' }}>
           <div className="h-40 overflow-hidden rounded-lg">
