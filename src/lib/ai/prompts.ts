@@ -473,7 +473,7 @@ export function buildRouteSystemPrompt(params: {
 }): string {
   const isCustom = !!params.customDescription
 
-  return `Tu es un expert en navigation côtière et fluviale en France et en Méditerranée. On te demande de proposer ${isCustom ? 'un itinéraire personnalisé' : '2 à 3 itinéraires'} pour un convoyage.
+  return `Tu es un expert en navigation côtière et fluviale en France et en Méditerranée. On te demande de proposer ${isCustom ? 'un itinéraire personnalisé' : 'des itinéraires'} pour un convoyage.
 
 ## DÉPART
 ${params.departure}
@@ -518,12 +518,20 @@ ${params.profile.maxContinuousHours ? `Heures continues max: ${params.profile.ma
 - Écluses et horaires d'ouverture (canaux)
 - Ports de refuge en cas de mauvais temps
 
-## FORMAT DE SORTIE
-Réponds UNIQUEMENT avec un JSON valide, sans texte autour.
-IMPORTANT : Sois CONCIS dans les notes de chaque étape (1 phrase max). Pour les longs trajets (>10 étapes), regroupe les passages similaires en étapes plus longues plutôt que de détailler chaque port intermédiaire. Vise maximum 12-15 étapes par route.
-Le format est:
+## NIVEAU DE DÉTAIL ADAPTATIF
+Estime la distance totale du trajet, puis adapte ton niveau de détail :
 
-${isCustom ? `{
+- **Court (<100 NM)** : sortie à la journée ou week-end. Propose 2-3 options avec 3-6 étapes chacune. Notes détaillées utiles.
+- **Moyen (100-500 NM)** : convoyage côtier multi-jours. Propose 2-3 options avec 6-10 étapes chacune. Notes concises (1 phrase).
+- **Long (500-2000 NM)** : convoyage majeur. Propose 2 options avec 10-15 étapes chacune. Regroupe les passages similaires en segments. Notes minimales.
+- **Très long (>2000 NM)** : traversée ou grand convoyage. Propose 2 options avec 8-12 grandes étapes (segments de plusieurs jours). Chaque étape représente un tronçon logique (ex: "Côte atlantique espagnole" plutôt que chaque port).
+
+RÈGLE ABSOLUE : Maximum 15 étapes par route. Si le trajet nécessite plus de détails, regroupe en segments.
+
+## FORMAT DE SORTIE
+Réponds UNIQUEMENT avec un JSON valide, sans texte autour. Notes concises (1 phrase max par étape).
+
+{
   "routes": [
     {
       "name": "Nom de l'itinéraire",
@@ -547,45 +555,12 @@ ${isCustom ? `{
           "distance_nm": 25,
           "distance_km": null,
           "phase": "Maritime / Canal / Fluvial",
-          "notes": "Notes spécifiques à cette étape"
+          "notes": "Note courte"
         }
       ]
     }
   ]
-}` : `{
-  "routes": [
-    {
-      "name": "Nom de l'option 1",
-      "summary": "Résumé en 2-3 phrases",
-      "total_distance_nm": 0,
-      "total_distance_km": 0,
-      "estimated_days": 0,
-      "pros": ["Avantage 1", "Avantage 2"],
-      "cons": ["Inconvénient 1"],
-      "warnings": ["Avertissement spécifique au bateau"],
-      "steps": [
-        {
-          "order_num": 1,
-          "name": "Nom de l'étape",
-          "from_port": "Port de départ",
-          "to_port": "Port d'arrivée",
-          "from_lat": 48.0000,
-          "from_lon": -4.0000,
-          "to_lat": 47.5000,
-          "to_lon": -3.5000,
-          "distance_nm": 25,
-          "distance_km": null,
-          "phase": "Maritime / Canal / Fluvial",
-          "notes": "Notes spécifiques à cette étape"
-        }
-      ]
-    },
-    {
-      "name": "Nom de l'option 2",
-      "...": "même structure"
-    }
-  ]
-}`}
+}
 
 IMPORTANT:
 - Les coordonnées (lat/lon) doivent être réalistes et correspondre aux ports réels

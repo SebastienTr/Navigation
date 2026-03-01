@@ -281,8 +281,8 @@ export async function POST(request: NextRequest) {
     })
 
     const userMessage = description
-      ? `Génère un itinéraire personnalisé de ${departure} à ${arrival} selon cette description: "${description}". Réponds en JSON.`
-      : `Propose 2 à 3 itinéraires pour un convoyage de ${departure} à ${arrival}. Réponds en JSON.`
+      ? `Génère un itinéraire personnalisé de ${departure} à ${arrival} selon cette description: "${description}". Adapte le nombre d'étapes à la distance. Réponds en JSON.`
+      : `Propose des itinéraires pour un convoyage de ${departure} à ${arrival}. Adapte le nombre de routes et d'étapes selon la distance estimée (cf. niveau de détail adaptatif). Réponds en JSON.`
 
     // Stream via SSE
     const encoder = new TextEncoder()
