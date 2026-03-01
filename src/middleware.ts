@@ -9,6 +9,7 @@ const PUBLIC_ROUTES = [
   '/api/tides',
   '/api/briefing',
   '/api/ai/triggers',
+  '/api/ai/memory-extract',
 ]
 
 function isPublicRoute(pathname: string): boolean {
