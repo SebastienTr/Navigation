@@ -130,7 +130,7 @@ export function streamClaude(options: CallClaudeOptions): ReadableStream<Uint8Ar
 //
 // Callbacks SSE pour informer le client en temps réel des tool calls.
 
-const MAX_TOOL_TURNS = 5
+const MAX_TOOL_TURNS = 15
 
 export interface ToolCallEvent {
   toolCallId: string

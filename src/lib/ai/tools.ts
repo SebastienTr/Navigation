@@ -70,18 +70,32 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
   {
     name: 'manage_checklist',
     description:
-      'Gérer la checklist du voyage. Actions: "add" (créer), "check" (marquer fait), "uncheck" (remettre à faire), "delete" (supprimer), "edit" (modifier), "list" (lister les éléments en attente).',
+      'Gérer la checklist du voyage. Actions: "add" (créer un item), "add_batch" (créer plusieurs items d\'un coup — PRÉFÉRÉ quand tu dois ajouter 3+ items), "check" (marquer fait), "uncheck" (remettre à faire), "delete" (supprimer), "edit" (modifier), "list" (lister les éléments en attente).',
     input_schema: {
       type: 'object' as const,
       properties: {
         action: {
           type: 'string',
-          enum: ['add', 'check', 'uncheck', 'delete', 'edit', 'list'],
-          description: 'Action à effectuer',
+          enum: ['add', 'add_batch', 'check', 'uncheck', 'delete', 'edit', 'list'],
+          description: 'Action à effectuer. Utilise "add_batch" pour ajouter plusieurs items en une seule fois.',
         },
         task: {
           type: 'string',
           description: 'Nom de la tâche (requis pour add, utilisé comme recherche fuzzy pour check/uncheck/delete/edit)',
+        },
+        items: {
+          type: 'array',
+          description: 'Liste d\'items à ajouter (pour add_batch uniquement). Chaque item: { task, category?, priority?, notes? }',
+          items: {
+            type: 'object',
+            properties: {
+              task: { type: 'string', description: 'Nom de la tâche' },
+              category: { type: 'string', enum: ['Safety', 'Propulsion', 'Navigation', 'Rigging', 'Comfort', 'Admin'] },
+              priority: { type: 'string', enum: ['Critical', 'High', 'Normal', 'Low'] },
+              notes: { type: 'string' },
+            },
+            required: ['task'],
+          },
         },
         category: {
           type: 'string',

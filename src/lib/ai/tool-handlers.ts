@@ -153,6 +153,26 @@ async function handleManageChecklist(
     return { success: true, summary: `Checklist: "${task}" ajouté` }
   }
 
+  if (action === 'add_batch') {
+    const items = input.items as Array<{ task: string; category?: string; priority?: string; notes?: string }> | undefined
+    if (!items || items.length === 0) return { success: false, summary: 'Liste d\'items requise pour add_batch' }
+
+    const rows = items.map((item) => ({
+      voyage_id: voyageId,
+      task: item.task,
+      category: (item.category as 'Safety' | 'Propulsion' | 'Navigation' | 'Rigging' | 'Comfort' | 'Admin') ?? null,
+      priority: (item.priority as 'Critical' | 'High' | 'Normal' | 'Low') ?? 'Normal',
+      status: 'to_do' as const,
+      notes: item.notes ?? null,
+    }))
+
+    const { error } = await supabase.from('checklist').insert(rows)
+
+    if (error) return { success: false, summary: `Erreur ajout batch checklist: ${error.message}` }
+    const names = items.map((i) => i.task).join(', ')
+    return { success: true, summary: `Checklist: ${items.length} items ajoutés (${names})` }
+  }
+
   if (action === 'check' || action === 'uncheck') {
     const task = input.task as string
     if (!task) return { success: false, summary: 'Nom de tâche requis pour cocher/décocher' }
