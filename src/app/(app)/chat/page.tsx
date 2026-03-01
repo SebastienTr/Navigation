@@ -454,22 +454,29 @@ export default function ChatPage() {
           </div>
         ) : (
           <>
-            {/* Suggestion chips when no messages */}
+            {/* Welcome message + suggestion chips when no messages */}
             {showSuggestions && (
-              <div className="flex flex-col items-center justify-center gap-6 py-12">
-                <div className="text-center">
-                  <MessageCircle
-                    size={40}
-                    className="mx-auto mb-3 text-blue-500 dark:text-blue-400"
-                  />
-                  <p className="text-base font-medium text-gray-900 dark:text-gray-100">
-                    Posez une question
-                  </p>
-                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    Votre second connaît votre bateau et votre itinéraire
-                  </p>
+              <div className="flex flex-col gap-4 py-4">
+                {/* Bosco welcome bubble */}
+                <div className="flex justify-start">
+                  <div className="max-w-[85%] rounded-2xl rounded-bl-sm bg-gray-200 px-4 py-2.5 text-gray-900 dark:bg-gray-800 dark:text-gray-100">
+                    <div className="prose-chat text-[15px] leading-relaxed">
+                      <p>Salut Capitaine ! Je suis <strong>Bosco</strong>, votre second de bord.</p>
+                      <p>Je connais votre bateau, votre itinéraire et la météo. Je peux vous aider à :</p>
+                      <ul className="my-1.5 ml-4 list-disc space-y-0.5 text-[14px]">
+                        <li>Préparer vos briefings et décisions GO/NO-GO</li>
+                        <li>Gérer le journal de bord, la checklist, les rappels</li>
+                        <li>Analyser la météo et les conditions de navigation</li>
+                        <li>Planifier et ajuster votre route</li>
+                      </ul>
+                      <p>Plus vous me donnez de contexte, plus je suis utile. N&apos;hésitez pas à me parler comme à un vrai équipier.</p>
+                      <p><strong>Alors, où en êtes-vous aujourd&apos;hui ?</strong></p>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex flex-wrap justify-center gap-2">
+
+                {/* Suggestion chips */}
+                <div className="flex flex-wrap gap-2 pl-2">
                   {SUGGESTION_CHIPS.map((chip) => (
                     <button
                       key={chip}

@@ -507,16 +507,18 @@ ${params.profile.maxContinuousHours ? `Heures continues max: ${params.profile.ma
 - On NE PEUT PAS aller de l'Atlantique à la Méditerranée par la mer sans passer par le détroit de Gibraltar (>2000 NM). Les seuls passages intérieurs France sont : Canal de la Garonne + Canal du Midi (Bordeaux → Sète), ou remontée du Rhône
 - Les coordonnées GPS de chaque étape DOIVENT correspondre aux vrais ports/écluses/points de passage
 - Les distances entre étapes successives doivent être cohérentes avec les coordonnées (pas de 500 NM entre deux ports à 20 NM l'un de l'autre)
-- Si le bateau a un tirant d'air > 6m, signaler en warning que les canaux du Midi / Garonne ne sont PAS praticables (ponts fixes ~3.5m). Il faudra alors passer par Gibraltar ou démâter
-- Si le tirant d'eau > 1.8m, signaler les limitations pour les canaux intérieurs
+- Si le bateau a un tirant d'air > 3.5m, les canaux du Midi / Garonne nécessitent de DÉMÂTER (ponts fixes ~3.5m). C'est une contrainte logistique (grue de démâtage/remâtage + transport du mât) mais PAS un obstacle absolu. Signaler en warning le besoin de démâter et les ports équipés de grues à l'entrée/sortie du canal.
+- Si le tirant d'eau > 1.6m, signaler les limitations pour les canaux intérieurs (profondeur variable, ~1.6-1.8m selon les biefs). Avec un tirant d'eau > 1.8m, passage canal très risqué.
+- Les voiliers avec mât peuvent emprunter les canaux en démâtant. Ne JAMAIS exclure une route canal uniquement à cause du tirant d'air — proposer la route avec le warning "démâtage nécessaire" et les détails logistiques.
 
 ## CONTRAINTES À PRENDRE EN COMPTE
 - Tirant d'eau du bateau pour l'accès aux ports et canaux
-- Tirant d'air pour le passage sous les ponts (canaux)
+- Tirant d'air pour le passage sous les ponts (canaux) — démâtage possible
 - Autonomie carburant et distance entre points de ravitaillement
 - Passages dangereux (raz, estuaires, caps) et conditions requises
 - Écluses et horaires d'ouverture (canaux)
 - Ports de refuge en cas de mauvais temps
+- Possibilité de démâter/remâter pour les passages fluviaux (grues disponibles à Royan, Bordeaux, Sète, etc.)
 
 ## DIVERSITÉ DES PROPOSITIONS
 Chaque itinéraire proposé doit représenter une STRATÉGIE FONDAMENTALEMENT DIFFÉRENTE, pas une variation mineure.
