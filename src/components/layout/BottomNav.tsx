@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Route,
   FileText,
+  BookOpen,
   MessageCircle,
   Menu,
 } from 'lucide-react'
@@ -20,6 +21,7 @@ interface NavTab {
 const tabs: NavTab[] = [
   { label: 'Accueil', href: '/', icon: LayoutDashboard },
   { label: 'Briefing', href: '/briefings', icon: FileText },
+  { label: 'Journal', href: '/log', icon: BookOpen },
   { label: 'Chat', href: '/chat', icon: MessageCircle },
   { label: 'Route', href: '/route', icon: Route },
   { label: 'Plus', href: '/more', icon: Menu },
