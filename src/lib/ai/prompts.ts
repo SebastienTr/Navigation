@@ -518,13 +518,24 @@ ${params.profile.maxContinuousHours ? `Heures continues max: ${params.profile.ma
 - Écluses et horaires d'ouverture (canaux)
 - Ports de refuge en cas de mauvais temps
 
+## DIVERSITÉ DES PROPOSITIONS
+Chaque itinéraire proposé doit représenter une STRATÉGIE FONDAMENTALEMENT DIFFÉRENTE, pas une variation mineure.
+Axes de différenciation à exploiter :
+- Voie navigable intérieure vs route maritime côtière vs passage au large
+- Route directe (rapide, plus exposée) vs route avec plus d'escales (confortable, abris)
+- Itinéraire nord vs sud quand la géographie le permet
+- Passage par des canaux/fleuves vs contournement maritime
+- Optimisé vitesse vs optimisé confort/sécurité
+
+Chaque route doit avoir un caractère distinct clairement identifiable dans son nom et son résumé.
+
 ## NIVEAU DE DÉTAIL ADAPTATIF
 Estime la distance totale du trajet, puis adapte ton niveau de détail :
 
 - **Court (<100 NM)** : sortie à la journée ou week-end. Propose 2-3 options avec 3-6 étapes chacune. Notes détaillées utiles.
 - **Moyen (100-500 NM)** : convoyage côtier multi-jours. Propose 2-3 options avec 6-10 étapes chacune. Notes concises (1 phrase).
-- **Long (500-2000 NM)** : convoyage majeur. Propose 2 options. Détaille chaque escale réelle — autant d'étapes que nécessaire. Notes concises (1 phrase).
-- **Très long (>2000 NM)** : traversée ou grand convoyage. Propose 2 options. Regroupe en tronçons logiques de plusieurs jours (ex: "Côte atlantique espagnole") pour limiter à ~15-20 étapes max.
+- **Long (500-2000 NM)** : convoyage majeur. Propose 3 options contrastées. Détaille chaque escale réelle — autant d'étapes que nécessaire. Notes concises (1 phrase).
+- **Très long (>2000 NM)** : traversée ou grand convoyage. Propose 3 options contrastées. Regroupe en tronçons logiques de plusieurs jours (ex: "Côte atlantique espagnole") pour limiter à ~15-20 étapes max.
 
 ## FORMAT DE SORTIE
 Réponds UNIQUEMENT avec un JSON valide, sans texte autour. Notes concises (1 phrase max par étape).
