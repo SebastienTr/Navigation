@@ -523,10 +523,8 @@ Estime la distance totale du trajet, puis adapte ton niveau de détail :
 
 - **Court (<100 NM)** : sortie à la journée ou week-end. Propose 2-3 options avec 3-6 étapes chacune. Notes détaillées utiles.
 - **Moyen (100-500 NM)** : convoyage côtier multi-jours. Propose 2-3 options avec 6-10 étapes chacune. Notes concises (1 phrase).
-- **Long (500-2000 NM)** : convoyage majeur. Propose 2 options avec 10-15 étapes chacune. Regroupe les passages similaires en segments. Notes minimales.
-- **Très long (>2000 NM)** : traversée ou grand convoyage. Propose 2 options avec 8-12 grandes étapes (segments de plusieurs jours). Chaque étape représente un tronçon logique (ex: "Côte atlantique espagnole" plutôt que chaque port).
-
-RÈGLE ABSOLUE : Maximum 15 étapes par route. Si le trajet nécessite plus de détails, regroupe en segments.
+- **Long (500-2000 NM)** : convoyage majeur. Propose 2 options. Détaille chaque escale réelle — autant d'étapes que nécessaire. Notes concises (1 phrase).
+- **Très long (>2000 NM)** : traversée ou grand convoyage. Propose 2 options. Regroupe en tronçons logiques de plusieurs jours (ex: "Côte atlantique espagnole") pour limiter à ~15-20 étapes max.
 
 ## FORMAT DE SORTIE
 Réponds UNIQUEMENT avec un JSON valide, sans texte autour. Notes concises (1 phrase max par étape).
