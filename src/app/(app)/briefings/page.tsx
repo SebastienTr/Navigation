@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import Link from 'next/link'
 import {
   FileText,
   ChevronDown,
@@ -12,6 +13,7 @@ import {
   Shield,
   Loader2,
   Trash2,
+  MessageCircle,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { useAuth } from '@/lib/auth/context'
@@ -487,27 +489,36 @@ export default function BriefingsPage() {
 
       <div className="px-4 py-4">
         {briefings.length === 0 ? (
-          /* Empty state */
-          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-            <FileText size={48} className="text-gray-300 dark:text-gray-700" />
-            <p className="text-base font-medium text-gray-900 dark:text-gray-100">
-              Aucun briefing disponible
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Le premier sera généré demain à 5h.
-            </p>
+          /* Empty state — Bosco tip */
+          <div className="flex flex-col gap-4 py-6">
+            <div className="rounded-2xl rounded-bl-sm bg-gray-200 px-4 py-3 dark:bg-gray-800">
+              <div className="text-[15px] leading-relaxed text-gray-900 dark:text-gray-100">
+                <p className="mb-2">
+                  Hey Capitaine ! Avant de générer votre premier briefing, je vous conseille de me donner un maximum de contexte via{' '}
+                  <Link href="/chat" className="inline-flex items-center gap-1 font-semibold text-blue-600 underline decoration-blue-300 dark:text-blue-400 dark:decoration-blue-700">
+                    <MessageCircle size={14} />
+                    le chat
+                  </Link>
+                  .
+                </p>
+                <p className="text-[14px] text-gray-600 dark:text-gray-400">
+                  Dites-moi où vous en êtes, ce qui vous préoccupe, vos projets pour les prochains jours... Plus j&apos;ai de contexte, plus le briefing sera personnalisé et pertinent.
+                </p>
+              </div>
+            </div>
+
             <button
               type="button"
               onClick={handleGenerate}
               disabled={generating}
-              className="mt-2 flex min-h-[44px] items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors active:bg-blue-700 disabled:opacity-50"
+              className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors active:bg-blue-700 disabled:opacity-50"
             >
               {generating ? (
                 <Loader2 size={16} className="animate-spin" />
               ) : (
                 <RefreshCw size={16} />
               )}
-              Générer un briefing maintenant
+              {generating ? 'Génération...' : 'Générer un briefing quand même'}
             </button>
           </div>
         ) : (

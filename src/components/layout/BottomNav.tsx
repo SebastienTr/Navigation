@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   Route,
-  BookOpen,
+  FileText,
   MessageCircle,
   Menu,
 } from 'lucide-react'
@@ -19,9 +19,9 @@ interface NavTab {
 
 const tabs: NavTab[] = [
   { label: 'Accueil', href: '/', icon: LayoutDashboard },
-  { label: 'Route', href: '/route', icon: Route },
-  { label: 'Journal', href: '/log', icon: BookOpen },
+  { label: 'Briefing', href: '/briefings', icon: FileText },
   { label: 'Chat', href: '/chat', icon: MessageCircle },
+  { label: 'Route', href: '/route', icon: Route },
   { label: 'Plus', href: '/more', icon: Menu },
 ]
 
