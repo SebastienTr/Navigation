@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import dynamic from 'next/dynamic'
-import { Crosshair, Loader2, MapPin } from 'lucide-react'
+import { Anchor, Crosshair, Loader2, MapPin } from 'lucide-react'
 import { useActiveVoyage } from '@/lib/auth/hooks'
 import { createClient } from '@/lib/supabase/client'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import MapLegend from './MapLegend'
 import type { Database } from '@/lib/supabase/types'
 import type { MapViewHandle } from './MapView'
 
@@ -25,11 +26,11 @@ const MapViewDynamic = dynamic(() => import('./MapView'), {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function MapPage() {
-  const { boatStatus, voyage, loading: voyageLoading } = useActiveVoyage()
+  const { boatStatus, boat, voyage, loading: voyageLoading } = useActiveVoyage()
   const [routeSteps, setRouteSteps] = useState<RouteStepRow[]>([])
   const [stepsLoading, setStepsLoading] = useState(true)
-  const [geoPosition, setGeoPosition] = useState<{ lat: number; lng: number } | null>(null)
-  const [locating, setLocating] = useState(false)
+  const [gpsPosition, setGpsPosition] = useState<{ lat: number; lng: number } | null>(null)
+  const [locatingGps, setLocatingGps] = useState(false)
   const mapHandleRef = useRef<MapViewHandle | null>(null)
 
   // Fetch route steps
@@ -61,25 +62,51 @@ export default function MapPage() {
     fetchSteps()
   }, [voyage])
 
-  // Center on current GPS position
-  const handleCenterOnMe = useCallback(() => {
+  // GPS watchPosition — continuous tracking
+  useEffect(() => {
     if (!navigator.geolocation) return
 
-    setLocating(true)
-    navigator.geolocation.getCurrentPosition(
+    const watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-        setGeoPosition(coords)
-        mapHandleRef.current?.flyTo(coords.lat, coords.lng, 13)
-        setLocating(false)
+        setGpsPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude })
       },
       (err) => {
-        console.error('Geolocation error:', err.message)
-        setLocating(false)
+        console.error('Geolocation watch error:', err.message)
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
     )
+
+    return () => navigator.geolocation.clearWatch(watchId)
   }, [])
+
+  // Center on boat
+  const handleCenterOnBoat = useCallback(() => {
+    if (boatStatus?.current_lat != null && boatStatus?.current_lon != null) {
+      mapHandleRef.current?.flyTo(boatStatus.current_lat, boatStatus.current_lon, 12)
+    }
+  }, [boatStatus])
+
+  // Center on GPS
+  const handleCenterOnGps = useCallback(() => {
+    if (gpsPosition) {
+      mapHandleRef.current?.flyTo(gpsPosition.lat, gpsPosition.lng, 13)
+    } else if (navigator.geolocation) {
+      setLocatingGps(true)
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+          setGpsPosition(coords)
+          mapHandleRef.current?.flyTo(coords.lat, coords.lng, 13)
+          setLocatingGps(false)
+        },
+        (err) => {
+          console.error('Geolocation error:', err.message)
+          setLocatingGps(false)
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      )
+    }
+  }, [gpsPosition])
 
   if (voyageLoading || stepsLoading) {
     return (
@@ -92,9 +119,10 @@ export default function MapPage() {
   // Map center: boat position > GPS > France center
   const center = boatStatus?.current_lat && boatStatus?.current_lon
     ? { lat: boatStatus.current_lat, lng: boatStatus.current_lon }
-    : geoPosition ?? { lat: 46.6, lng: 2.0 }
+    : gpsPosition ?? { lat: 46.6, lng: 2.0 }
 
   const defaultZoom = boatStatus?.current_lat ? 10 : 6
+  const hasBoatPosition = boatStatus?.current_lat != null && boatStatus?.current_lon != null
 
   return (
     <div className="relative h-[calc(100dvh-5rem)]">
@@ -104,23 +132,47 @@ export default function MapPage() {
         routeSteps={routeSteps}
         boatLat={boatStatus?.current_lat ?? null}
         boatLon={boatStatus?.current_lon ?? null}
+        boatName={boat?.name ?? null}
+        navStatus={boatStatus?.nav_status ?? null}
+        gpsLat={gpsPosition?.lat ?? null}
+        gpsLon={gpsPosition?.lng ?? null}
         onMapReady={(handle) => { mapHandleRef.current = handle }}
       />
 
-      {/* Floating "center on me" button */}
-      <button
-        type="button"
-        onClick={handleCenterOnMe}
-        disabled={locating}
-        aria-label="Centrer sur ma position"
-        className="absolute bottom-6 right-4 z-[1000] flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg transition-colors active:bg-gray-100 disabled:opacity-60 dark:bg-gray-800 dark:active:bg-gray-700"
-      >
-        {locating ? (
-          <Loader2 className="h-5 w-5 animate-spin text-blue-600 dark:text-blue-400" />
-        ) : (
-          <Crosshair className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+      {/* Legend (bottom-left) */}
+      {routeSteps.length > 0 && <MapLegend />}
+
+      {/* Floating center buttons (bottom-right, stacked) */}
+      <div className="absolute bottom-6 right-4 z-[1000] flex flex-col gap-2">
+        {/* Center on GPS */}
+        {(gpsPosition || navigator.geolocation) && (
+          <button
+            type="button"
+            onClick={handleCenterOnGps}
+            disabled={locatingGps}
+            aria-label="Centrer sur ma position GPS"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-lg transition-colors active:bg-gray-100 disabled:opacity-60 dark:bg-gray-800 dark:active:bg-gray-700"
+          >
+            {locatingGps ? (
+              <Loader2 className="h-4 w-4 animate-spin text-gray-500 dark:text-gray-400" />
+            ) : (
+              <Crosshair className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+            )}
+          </button>
         )}
-      </button>
+
+        {/* Center on boat */}
+        {hasBoatPosition && (
+          <button
+            type="button"
+            onClick={handleCenterOnBoat}
+            aria-label="Centrer sur le bateau"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg transition-colors active:bg-gray-100 dark:bg-gray-800 dark:active:bg-gray-700"
+          >
+            <Anchor className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          </button>
+        )}
+      </div>
 
       {/* No voyage indicator */}
       {!voyage && (

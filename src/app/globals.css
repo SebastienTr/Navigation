@@ -26,10 +26,10 @@
   --color-nogo: #EF4444;
 
   /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
-  --shadow-glow: 0 0 20px rgba(34,197,94,0.15);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 30px rgba(0,0,0,0.16), 0 4px 8px rgba(0,0,0,0.1);
+  --shadow-glow: 0 0 24px rgba(34,197,94,0.2), 0 0 8px rgba(34,197,94,0.15);
 
   /* Animations */
   --animate-fade-in: fadeIn 0.3s ease-out;
@@ -51,12 +51,12 @@
 .dark {
   --background: #0b1929;
   --foreground: #e1e8ef;
-  --glass-bg: rgba(19,35,55,0.6);
-  --glass-border: rgba(30,47,68,0.5);
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
-  --shadow-glow: 0 0 20px rgba(34,197,94,0.25);
+  --glass-bg: rgba(30,55,85,0.45);
+  --glass-border: rgba(80,130,180,0.2);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px rgba(50,90,140,0.08);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.5), 0 0 0 1px rgba(50,90,140,0.1);
+  --shadow-lg: 0 8px 30px rgba(0,0,0,0.6), 0 0 0 1px rgba(50,90,140,0.12);
+  --shadow-glow: 0 0 24px rgba(34,197,94,0.35), 0 0 8px rgba(34,197,94,0.2);
 }
 
 
@@ -128,6 +128,23 @@ html {
   width: 100%;
   height: 100%;
   z-index: 0;
+}
+
+/* ── Leaflet popup dark mode ──────────────────────────────────── */
+.dark .leaflet-popup-content-wrapper {
+  background: #1e2f44;
+  color: #e1e8ef;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+.dark .leaflet-popup-tip {
+  background: #1e2f44;
+}
+.dark .leaflet-popup-close-button {
+  color: #a4b5c8;
+}
+.dark .leaflet-popup-close-button:hover {
+  color: #e1e8ef;
 }
 
 /* ── Chat markdown styling ───────────────────────────────────────── */
