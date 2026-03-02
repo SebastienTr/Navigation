@@ -2,22 +2,20 @@
 
 import type { ReactNode, MouseEventHandler } from 'react'
 
-interface CardProps {
+interface GlassCardProps {
   children: ReactNode
   className?: string
   onClick?: MouseEventHandler<HTMLDivElement>
+  animate?: boolean
 }
 
-export function Card({ children, className = '', onClick }: CardProps) {
-  const hasCustomBg = /\bbg-/.test(className)
+export function GlassCard({ children, className = '', onClick, animate = true }: GlassCardProps) {
   return (
     <div
-      className={`rounded-lg border border-gray-200/60 p-4 shadow-[var(--shadow-sm)] transition-shadow duration-200 dark:border-gray-800/40 ${
-        hasCustomBg ? '' : 'bg-white dark:bg-gray-900'
+      className={`glass rounded-xl shadow-[var(--shadow-md)] p-4 transition-shadow duration-200 ${
+        animate ? 'animate-[fadeIn_0.3s_ease-out]' : ''
       } ${
-        onClick
-          ? 'cursor-pointer hover:shadow-[var(--shadow-md)] active:bg-gray-50 dark:active:bg-gray-800'
-          : ''
+        onClick ? 'cursor-pointer hover:shadow-[var(--shadow-lg)] active:scale-[0.99]' : ''
       } ${className}`}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
