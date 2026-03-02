@@ -19,6 +19,7 @@ import { useAuth } from '@/lib/auth/context'
 import { useActiveVoyage } from '@/lib/auth/hooks'
 import { createClient } from '@/lib/supabase/client'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { EmptyState } from '@/components/ui/EmptyState'
 import type { Database } from '@/lib/supabase/types'
 
 type ReminderRow = Database['public']['Tables']['reminders']['Row']
@@ -141,15 +142,11 @@ export default function RemindersPage() {
 
   if (!voyage) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-6 text-center">
-        <Bell size={48} className="text-gray-300 dark:text-gray-700" />
-        <p className="text-lg font-medium text-gray-900 dark:text-gray-100">
-          Aucun voyage actif
-        </p>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Créez un voyage pour commencer.
-        </p>
-      </div>
+      <EmptyState
+        illustration="anchor"
+        title="Les rappels veillent pendant la nav"
+        message="Créez un voyage dans les paramètres et Bosco gardera un œil sur les échéances pour vous."
+      />
     )
   }
 
@@ -166,19 +163,17 @@ export default function RemindersPage() {
       </p>
 
       {reminders.length === 0 && (
-        <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-          <Bell size={48} className="text-gray-300 dark:text-gray-700" />
-          <p className="text-base font-medium text-gray-900 dark:text-gray-100">
-            Aucun rappel
-          </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Demandez à Bosco dans le chat pour programmer des rappels.
-          </p>
-          <div className="mt-2 flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+        <EmptyState
+          illustration="anchor"
+          title="Pas de rappels en vue"
+          message="Demandez à Bosco dans le chat — il adore programmer des rappels pour vous."
+          compact
+        >
+          <div className="mt-1 flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
             <Sparkles size={12} />
             « Programme un rappel météo chaque matin »
           </div>
-        </div>
+        </EmptyState>
       )}
 
       {/* Pending reminders */}

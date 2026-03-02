@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import {
-  FileText,
   ChevronDown,
   ChevronUp,
   RefreshCw,
@@ -20,6 +19,7 @@ import { useAuth } from '@/lib/auth/context'
 import { useActiveVoyage } from '@/lib/auth/hooks'
 import { createClient } from '@/lib/supabase/client'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { EmptyState } from '@/components/ui/EmptyState'
 import type { Database } from '@/lib/supabase/types'
 
 type BriefingRow = Database['public']['Tables']['briefings']['Row']
@@ -444,15 +444,11 @@ export default function BriefingsPage() {
   // No active voyage
   if (!voyage) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-6 text-center">
-        <FileText size={48} className="text-gray-300 dark:text-gray-700" />
-        <p className="text-lg font-medium text-gray-900 dark:text-gray-100">
-          Aucun voyage actif
-        </p>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Créez un voyage dans les réglages pour voir vos briefings.
-        </p>
-      </div>
+      <EmptyState
+        illustration="compass"
+        title="Les briefings arrivent avec le voyage"
+        message="Créez un voyage dans les paramètres et Bosco vous préparera un briefing météo chaque matin."
+      />
     )
   }
 

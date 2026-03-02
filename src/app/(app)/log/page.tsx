@@ -29,6 +29,7 @@ import { createClient } from '@/lib/supabase/client'
 import { uploadLogPhotos } from '@/lib/supabase/storage'
 import { queueLogEntry, getPendingLogs, removePendingLog, getPendingCount } from '@/lib/offline-queue'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { EmptyState } from '@/components/ui/EmptyState'
 import type { Database } from '@/lib/supabase/types'
 
 type LogRow = Database['public']['Tables']['logs']['Row']
@@ -506,12 +507,11 @@ export default function LogPage() {
 
   if (!voyage) {
     return (
-      <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-3 px-6">
-        <BookOpen className="h-12 w-12 text-gray-300 dark:text-gray-600" />
-        <p className="text-center text-gray-500 dark:text-gray-400">
-          Aucun voyage actif. Créez-en un depuis les Paramètres.
-        </p>
-      </div>
+      <EmptyState
+        illustration="sailboat"
+        title="Le journal de bord attend son capitaine"
+        message="Créez un voyage dans les paramètres et Bosco tiendra le journal avec vous."
+      />
     )
   }
 
@@ -882,14 +882,12 @@ export default function LogPage() {
           <LoadingSpinner text="Chargement..." />
         </div>
       ) : logs.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-16 text-center">
-          <BookOpen className="h-12 w-12 text-gray-300 dark:text-gray-600" />
-          <p className="text-base font-medium text-gray-900 dark:text-gray-100">
-            Aucune entrée
-          </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Enregistrez votre premier point dans le journal.
-          </p>
+        <EmptyState
+          illustration="compass"
+          title="Cap sur la première entrée"
+          message="Votre journal de bord est encore vierge. Notez votre premier point — même au mouillage, ça compte !"
+          compact
+        >
           <button
             type="button"
             onClick={openNewForm}
@@ -898,7 +896,7 @@ export default function LogPage() {
             <Plus className="h-4 w-4" />
             Nouvelle entrée
           </button>
-        </div>
+        </EmptyState>
       ) : (
         <ul className="space-y-2">
           {logs.map((log) => {

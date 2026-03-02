@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import {
   Send,
-  MessageCircle,
   AlertCircle,
   BookOpen,
   CheckSquare,
@@ -20,6 +19,7 @@ import { useAuth } from '@/lib/auth/context'
 import { useActiveVoyage } from '@/lib/auth/hooks'
 import { createClient } from '@/lib/supabase/client'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { EmptyState } from '@/components/ui/EmptyState'
 import type { Database } from '@/lib/supabase/types'
 
 type ChatMessageRow = Database['public']['Tables']['chat_history']['Row']
@@ -420,15 +420,11 @@ export default function ChatPage() {
   // No active voyage
   if (!voyage) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-6 text-center">
-        <MessageCircle size={48} className="text-gray-300 dark:text-gray-700" />
-        <p className="text-lg font-medium text-gray-900 dark:text-gray-100">
-          Aucun voyage actif
-        </p>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Créez un voyage dans les réglages pour commencer à discuter.
-        </p>
-      </div>
+      <EmptyState
+        illustration="sailboat"
+        title="Bosco est là, Capitaine"
+        message="Créez un voyage dans les paramètres et je serai prêt à discuter navigation, météo, ou simplement bavarder."
+      />
     )
   }
 

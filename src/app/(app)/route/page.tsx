@@ -9,7 +9,6 @@ import {
   ChevronDown,
   ChevronRight,
   Loader2,
-  MapPinOff,
   Pencil,
   Trash2,
   ArrowUp,
@@ -21,6 +20,7 @@ import {
 import { useActiveVoyage } from '@/lib/auth/hooks'
 import { createClient } from '@/lib/supabase/client'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { EmptyState } from '@/components/ui/EmptyState'
 import type { Database } from '@/lib/supabase/types'
 
 type RouteStepRow = Database['public']['Tables']['route_steps']['Row']
@@ -541,22 +541,21 @@ export default function RoutePage() {
 
   if (!voyage) {
     return (
-      <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-3 px-6">
-        <MapPinOff className="h-12 w-12 text-gray-300 dark:text-gray-600" />
-        <p className="text-center text-gray-500 dark:text-gray-400">
-          Aucun voyage actif. Créez-en un depuis les Paramètres.
-        </p>
-      </div>
+      <EmptyState
+        illustration="compass"
+        title="Pas encore de cap à suivre"
+        message="Créez un voyage dans les paramètres et tracez votre route avec l'aide de Bosco."
+      />
     )
   }
 
   if (steps.length === 0 && !editMode) {
     return (
-      <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-3 px-6">
-        <Route className="h-12 w-12 text-gray-300 dark:text-gray-600" />
-        <p className="text-center text-gray-500 dark:text-gray-400">
-          Aucun itinéraire défini.
-        </p>
+      <EmptyState
+        illustration="compass"
+        title="L'aventure commence ici"
+        message="Votre itinéraire est vierge. Ajoutez votre première étape ou laissez Bosco vous proposer une route."
+      >
         <button
           type="button"
           onClick={() => { setEditMode(true); handleAddStepAtEnd() }}
@@ -565,7 +564,7 @@ export default function RoutePage() {
           <Plus size={16} />
           Ajouter une étape
         </button>
-      </div>
+      </EmptyState>
     )
   }
 

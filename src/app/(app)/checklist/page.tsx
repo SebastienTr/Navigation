@@ -6,12 +6,12 @@ import {
   Circle,
   Plus,
   X,
-  ClipboardList,
   Loader2,
 } from 'lucide-react'
 import { useActiveVoyage } from '@/lib/auth/hooks'
 import { createClient } from '@/lib/supabase/client'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { EmptyState } from '@/components/ui/EmptyState'
 import type { Database } from '@/lib/supabase/types'
 
 type ChecklistRow = Database['public']['Tables']['checklist']['Row']
@@ -415,15 +415,11 @@ export default function ChecklistPage() {
   // No active voyage
   if (!voyage) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-6 text-center">
-        <ClipboardList size={48} className="text-gray-300 dark:text-gray-700" />
-        <p className="text-lg font-medium text-gray-900 dark:text-gray-100">
-          Aucun voyage actif
-        </p>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Créez un voyage dans les réglages pour gérer votre checklist.
-        </p>
-      </div>
+      <EmptyState
+        illustration="anchor"
+        title="Checklist au mouillage"
+        message="Créez un voyage dans les paramètres et Bosco vous aidera à ne rien oublier avant le départ."
+      />
     )
   }
 
@@ -497,15 +493,12 @@ export default function ChecklistPage() {
       <div className="px-4 pt-3">
         {items.length === 0 ? (
           /* Empty state */
-          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-            <ClipboardList size={48} className="text-gray-300 dark:text-gray-700" />
-            <p className="text-base font-medium text-gray-900 dark:text-gray-100">
-              Aucune tâche
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Ajoutez votre première tâche avec le bouton +.
-            </p>
-          </div>
+          <EmptyState
+            illustration="anchor"
+            title="Rien à vérifier pour l'instant"
+            message="Ajoutez votre première tâche avec le bouton + ou demandez à Bosco dans le chat de préparer une checklist."
+            compact
+          />
         ) : filteredItems.length === 0 ? (
           <p className="py-8 text-center text-sm text-gray-400 dark:text-gray-500">
             Aucune tâche pour ces filtres.

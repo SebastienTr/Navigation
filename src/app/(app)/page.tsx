@@ -23,6 +23,9 @@ import { useAuth } from '@/lib/auth/context'
 import { useActiveVoyage } from '@/lib/auth/hooks'
 import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/Card'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { timeAgo } from '@/lib/utils'
 import type { Database } from '@/lib/supabase/types'
@@ -234,20 +237,12 @@ function PushPermissionBanner() {
         </p>
       </div>
       <div className="flex shrink-0 gap-2">
-        <button
-          type="button"
-          onClick={handleDismiss}
-          className="rounded-lg px-3 py-1.5 text-xs font-medium text-blue-600 active:bg-blue-100 dark:text-blue-400"
-        >
+        <Button variant="ghost" size="sm" onClick={handleDismiss}>
           Plus tard
-        </button>
-        <button
-          type="button"
-          onClick={handleActivate}
-          className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white active:bg-blue-700"
-        >
+        </Button>
+        <Button variant="primary" size="sm" onClick={handleActivate}>
           Activer
-        </button>
+        </Button>
       </div>
     </Card>
   )
@@ -259,7 +254,7 @@ function ActiveProblemsBar({ problems }: { problems: string[] | null }) {
   if (!problems || problems.length === 0) return null
 
   return (
-    <div className="flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-white">
+    <div className="flex items-center gap-2 rounded-xl bg-red-600 px-3 py-2 text-white ring-2 ring-red-400/30 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
       <AlertTriangle size={14} className="shrink-0" />
       <p className="truncate text-xs font-medium">
         {problems.join(' · ')}
@@ -274,7 +269,7 @@ interface MateAlert {
   key: string
   icon: React.ReactNode
   message: string
-  color: string
+  variant: 'go' | 'standby' | 'nogo' | 'info' | 'muted'
 }
 
 function MateMessages({
@@ -299,7 +294,7 @@ function MateMessages({
         key: 'log',
         icon: <BookOpen size={14} />,
         message: `Pas de journal depuis ${hoursAgo}h`,
-        color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+        variant: 'standby' as const,
       })
     }
   }
@@ -311,7 +306,7 @@ function MateMessages({
       key: 'fuel',
       icon: <Fuel size={14} />,
       message: 'Niveau carburant bas',
-      color: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+      variant: 'nogo' as const,
     })
   }
 
@@ -321,7 +316,7 @@ function MateMessages({
       key: `reminder-${reminder.id}`,
       icon: <AlertTriangle size={14} />,
       message: reminder.message,
-      color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+      variant: 'standby' as const,
     })
   }
 
@@ -331,7 +326,7 @@ function MateMessages({
       key: 'briefing',
       icon: <Coffee size={14} />,
       message: 'Briefing du jour non disponible',
-      color: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+      variant: 'muted' as const,
     })
   }
 
@@ -340,13 +335,13 @@ function MateMessages({
   return (
     <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
       {alerts.map((alert) => (
-        <span
+        <Badge
           key={alert.key}
-          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${alert.color}`}
-        >
-          {alert.icon}
-          {alert.message}
-        </span>
+          label={alert.message}
+          variant={alert.variant}
+          size="md"
+          className="shrink-0 gap-1.5"
+        />
       ))}
     </div>
   )
@@ -397,9 +392,18 @@ function VerdictCard({
   const summary = extractBriefingSummary(briefing.content)
 
   return (
-    <Card
-      className={`${colors.bg} ${colors.text} relative flex flex-col items-center gap-1.5 py-4 shadow-md`}
+    <div
+      className={`rounded-xl border-0 p-4 ${colors.bg} ${colors.text} relative flex flex-col items-center gap-1.5 py-5 animate-[fadeIn_0.3s_ease-out] cursor-pointer transition-all active:scale-[0.99] ${
+        briefing.verdict === 'GO'
+          ? 'ring-2 ring-green-400/40 shadow-[0_0_30px_rgba(34,197,94,0.3)]'
+          : briefing.verdict === 'NO-GO'
+            ? 'ring-2 ring-red-400/30 shadow-[0_0_30px_rgba(239,68,68,0.2)]'
+            : 'ring-2 ring-amber-400/30 shadow-[0_0_30px_rgba(245,158,11,0.2)]'
+      }`}
       onClick={() => router.push('/briefings')}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push('/briefings'); } }}
     >
       <span className="absolute right-3 top-2 text-[10px] opacity-70">
         {timeAgo(briefing.created_at)}
@@ -424,7 +428,7 @@ function VerdictCard({
           {briefing.destination}
         </p>
       )}
-    </Card>
+    </div>
   )
 }
 
@@ -482,7 +486,7 @@ function WeatherSummary({
   }
 
   return (
-    <Card className="py-3">
+    <div className="animate-[fadeIn_0.3s_ease-out] rounded-xl bg-gradient-to-br from-blue-50 to-cyan-50 p-4 ring-1 ring-blue-200/40 dark:from-[#0f2a44] dark:to-[#132337] dark:ring-blue-500/15">
       <div className="grid grid-cols-3 gap-2">
         <WeatherMetric
           icon={<Wind size={14} />}
@@ -506,7 +510,7 @@ function WeatherSummary({
           }
         />
       </div>
-    </Card>
+    </div>
   )
 }
 
@@ -522,8 +526,8 @@ function WeatherMetric({
   sub?: string
 }) {
   return (
-    <div className="flex flex-col items-center gap-0.5 rounded-lg bg-gray-50 px-2 py-1.5 dark:bg-gray-800">
-      <div className="text-gray-400 dark:text-gray-500">{icon}</div>
+    <div className="flex flex-col items-center gap-0.5 rounded-lg bg-white/60 px-2 py-2 ring-1 ring-blue-100/50 dark:bg-white/5 dark:ring-white/10">
+      <div className="text-blue-400 dark:text-blue-400">{icon}</div>
       <p className="text-[10px] text-gray-500 dark:text-gray-400">{label}</p>
       <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
         {value}
@@ -590,13 +594,9 @@ function LevelsBar({
         <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
           Niveaux
         </h3>
-        <button
-          type="button"
-          onClick={() => setEditing(!editing)}
-          className="text-xs font-medium text-blue-600 active:text-blue-700 dark:text-blue-400"
-        >
+        <Button variant="ghost" size="sm" onClick={() => setEditing(!editing)}>
           {editing ? 'Annuler' : 'Modifier'}
-        </button>
+        </Button>
       </div>
 
       {editing ? (
@@ -613,19 +613,16 @@ function LevelsBar({
             value={localWater}
             onChange={setLocalWater}
           />
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            size="md"
+            loading={saving}
             onClick={handleSave}
-            disabled={saving}
-            className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white active:bg-blue-700 disabled:opacity-50 dark:bg-blue-500"
+            className="w-full"
           >
-            {saving ? (
-              <RefreshCw size={16} className="animate-spin" />
-            ) : (
-              <Check size={16} />
-            )}
+            {!saving && <Check size={16} />}
             Enregistrer
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="space-y-2">
@@ -977,13 +974,13 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="space-y-2 p-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-[140px]" />
-        <Skeleton className="h-[72px]" />
-        <Skeleton className="h-[80px]" />
-        <Skeleton className="h-[100px]" />
-        <Skeleton className="h-40" />
+      <div className="space-y-3 p-4">
+        <Skeleton className="h-8 w-48 rounded-xl" />
+        <Skeleton className="h-[140px] rounded-xl" />
+        <Skeleton className="h-[72px] rounded-xl" />
+        <Skeleton className="h-[80px] rounded-xl" />
+        <Skeleton className="h-[100px] rounded-xl" />
+        <Skeleton className="h-40 rounded-xl" />
       </div>
     )
   }
@@ -993,15 +990,11 @@ export default function DashboardPage() {
   if (!voyage) {
     return (
       <div className="p-4">
-        <Card className="flex min-h-[200px] flex-col items-center justify-center gap-3 text-center">
-          <Anchor size={40} className="text-gray-300 dark:text-gray-600" />
-          <p className="text-lg font-semibold text-gray-600 dark:text-gray-400">
-            Aucune navigation active
-          </p>
-          <p className="text-sm text-gray-400 dark:text-gray-500">
-            Créez une navigation dans les paramètres pour commencer
-          </p>
-        </Card>
+        <EmptyState
+          illustration="sailboat"
+          title="Prêt à larguer les amarres ?"
+          message="Rendez-vous dans les paramètres pour créer votre première navigation. Bosco sera là pour vous accompagner."
+        />
       </div>
     )
   }
@@ -1034,7 +1027,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="space-y-2 p-4">
+      <div className="animate-[fadeIn_0.3s_ease-out] space-y-3 p-4">
         {/* Header — compacté + nav_status */}
         <header>
           <div className="flex items-center justify-between">
@@ -1042,9 +1035,9 @@ export default function DashboardPage() {
               {voyage.name}
             </h1>
             {navStatus && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+              <span className="inline-flex items-center gap-1.5">
                 <span className={`inline-block h-2 w-2 rounded-full ${navStatus.color}`} />
-                {navStatus.label}
+                <Badge label={navStatus.label} variant="muted" size="sm" />
               </span>
             )}
           </div>

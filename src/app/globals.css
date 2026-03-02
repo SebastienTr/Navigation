@@ -87,6 +87,35 @@
   100% { transform: scale(1.8); opacity: 0; }
 }
 
+@keyframes gentle-rock {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+
+@keyframes gentle-sway {
+  0%, 100% { transform: rotate(-2deg) translateX(-1px); }
+  50% { transform: rotate(2deg) translateX(1px); }
+}
+
+@keyframes gentle-spin {
+  0%, 100% { transform: rotate(-5deg); }
+  50% { transform: rotate(5deg); }
+}
+
+/* ── Empty state illustration animations ──────────────────────── */
+.empty-state-rock {
+  animation: gentle-rock 4s ease-in-out infinite;
+  transform-origin: 50% 70%;
+}
+.empty-state-sway {
+  animation: gentle-sway 3.5s ease-in-out infinite;
+  transform-origin: 50% 24px;
+}
+.empty-state-spin {
+  animation: gentle-spin 5s ease-in-out infinite;
+  transform-origin: center;
+}
+
 /* ── Utility classes ─────────────────────────────────────────────── */
 .glass {
   background: var(--glass-bg);
