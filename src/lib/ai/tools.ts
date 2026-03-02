@@ -11,6 +11,7 @@ export type ToolName =
   | 'manage_route'
   | 'create_reminder'
   | 'get_weather'
+  | 'get_tides'
   | 'update_memory'
 
 export const CHAT_TOOLS: Anthropic.Tool[] = [
@@ -280,7 +281,36 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
     },
   },
 
-  // ── 7. Mettre à jour la mémoire ────────────────────────────────────────
+  // ── 7. Récupérer les marées ─────────────────────────────────────────
+  {
+    name: 'get_tides',
+    description:
+      'Récupérer les prévisions de marées (pleines mers et basses mers) pour des coordonnées spécifiques. Utilise quand le capitaine demande les marées, les hauteurs d\'eau, ou pour évaluer les courants. Essentiel pour les entrées/sorties de port, passages de hauts-fonds, et mouillages.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        latitude: {
+          type: 'number',
+          description: 'Latitude en degrés décimaux',
+        },
+        longitude: {
+          type: 'number',
+          description: 'Longitude en degrés décimaux',
+        },
+        location_name: {
+          type: 'string',
+          description: 'Nom du lieu (pour le résumé)',
+        },
+        days: {
+          type: 'number',
+          description: 'Nombre de jours de prévision (1 à 7, défaut: 3)',
+        },
+      },
+      required: ['latitude', 'longitude'],
+    },
+  },
+
+  // ── 8. Mettre à jour la mémoire ────────────────────────────────────────
   {
     name: 'update_memory',
     description:

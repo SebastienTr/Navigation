@@ -58,6 +58,7 @@ const TOOL_HANDLERS: Record<
   manage_route: handleManageRoute,
   create_reminder: handleCreateReminder,
   get_weather: handleGetWeather,
+  get_tides: handleGetTides,
   update_memory: handleUpdateMemory,
 }
 
@@ -670,7 +671,48 @@ async function handleGetWeather(
   }
 }
 
-// ── 7. update_memory ──────────────────────────────────────────────────────
+// ── 7. get_tides ──────────────────────────────────────────────────────────
+
+async function handleGetTides(
+  input: Record<string, unknown>,
+  ctx: ToolCallContext
+): Promise<ToolCallResult> {
+  const latitude = input.latitude as number
+  const longitude = input.longitude as number
+  const locationName = (input.location_name as string) || `${latitude.toFixed(2)}N, ${longitude.toFixed(2)}E`
+  const days = (input.days as number) || 3
+
+  void ctx
+
+  try {
+    const { getTides } = await import('@/lib/weather/worldtides')
+    const tideData = await getTides(latitude, longitude, days)
+
+    if (!tideData) {
+      return { success: false, summary: 'Données de marées indisponibles (clé API WorldTides non configurée).' }
+    }
+
+    // Formater les extrêmes pour que Claude puisse les interpréter
+    const extremesSummary = tideData.extremes.map((e) => {
+      const date = new Date(e.dt * 1000)
+      const timeStr = date.toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' })
+      return `${e.type === 'High' ? 'PM' : 'BM'} ${timeStr} — ${e.height.toFixed(2)}m`
+    }).join('\n')
+
+    const station = tideData.station ? ` (station: ${tideData.station})` : ''
+
+    return {
+      success: true,
+      summary: `Marées ${locationName}${station} (${days}j):\n${extremesSummary}`,
+      data: tideData as unknown as Record<string, unknown>,
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Erreur inconnue'
+    return { success: false, summary: `Erreur marées: ${message}` }
+  }
+}
+
+// ── 8. update_memory ──────────────────────────────────────────────────────
 
 async function handleUpdateMemory(
   input: Record<string, unknown>,

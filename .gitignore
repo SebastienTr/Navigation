@@ -56,5 +56,4 @@ next-env.d.ts
 .windsurf/
 _bmad/
 
-.supabase/
-
+supabase/
