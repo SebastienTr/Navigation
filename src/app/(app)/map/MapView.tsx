@@ -22,10 +22,16 @@ L.Icon.Default.mergeOptions({
 
 const PHASE_COLORS: Record<string, string> = {
   atlantic: '#3B82F6',
+  atlantique: '#3B82F6',
+  maritime: '#3B82F6',
   gironde: '#F59E0B',
   garonne_canal: '#22C55E',
+  canal_de_garonne: '#22C55E',
   midi_canal: '#A855F7',
+  canal_du_midi: '#A855F7',
   mediterranean: '#06B6D4',
+  mediterranee: '#06B6D4',
+  méditerranée: '#06B6D4',
 }
 
 const DEFAULT_SEGMENT_COLOR = '#3B82F6'
@@ -213,9 +219,13 @@ function collectWaypoints(steps: RouteStepRow[]): Waypoint[] {
 
 // ── Style helpers ────────────────────────────────────────────────────────────
 
+function normalizePhaseKey(phase: string): string {
+  return phase.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s-]/g, '_')
+}
+
 function getPhaseColor(phase: string | null): string {
   if (!phase) return DEFAULT_SEGMENT_COLOR
-  const key = phase.toLowerCase().replace(/[\s-]/g, '_')
+  const key = normalizePhaseKey(phase)
   return PHASE_COLORS[key] ?? DEFAULT_SEGMENT_COLOR
 }
 
@@ -266,15 +276,21 @@ const SEGMENT_STATUS_LABELS: Record<string, string> = {
 
 const PHASE_LABELS: Record<string, string> = {
   atlantic: 'Atlantique',
+  atlantique: 'Atlantique',
+  maritime: 'Atlantique',
   gironde: 'Gironde',
   garonne_canal: 'Canal de Garonne',
+  canal_de_garonne: 'Canal de Garonne',
   midi_canal: 'Canal du Midi',
+  canal_du_midi: 'Canal du Midi',
   mediterranean: 'Méditerranée',
+  mediterranee: 'Méditerranée',
+  méditerranée: 'Méditerranée',
 }
 
 function getPhaseLabelFr(phase: string | null): string {
   if (!phase) return 'Inconnue'
-  const key = phase.toLowerCase().replace(/[\s-]/g, '_')
+  const key = normalizePhaseKey(phase)
   return PHASE_LABELS[key] ?? phase
 }
 
@@ -372,11 +388,12 @@ export default function MapView({
         opacity={themeMode === 'dark' ? 0.9 : 0.8}
       />
 
-      {/* Glow under in_progress segments */}
+      {/* Glow under in_progress segments (non-interactive so clicks pass through) */}
       {segments.filter(s => s.status === 'in_progress').map((seg, i) => (
         <Polyline
           key={`glow-${i}`}
           positions={seg.positions}
+          interactive={false}
           pathOptions={{
             color: getPhaseColor(seg.phase),
             weight: 14,
