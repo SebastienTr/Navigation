@@ -12,7 +12,7 @@ interface GlassCardProps {
 export function GlassCard({ children, className = '', onClick, animate = true }: GlassCardProps) {
   return (
     <div
-      className={`glass rounded-xl shadow-[var(--shadow-md)] p-4 transition-shadow duration-200 ${
+      className={`glass rounded-xl shadow-[var(--shadow-lg)] p-4 transition-all duration-200 ${
         animate ? 'animate-[fadeIn_0.3s_ease-out]' : ''
       } ${
         onClick ? 'cursor-pointer hover:shadow-[var(--shadow-lg)] active:scale-[0.99]' : ''

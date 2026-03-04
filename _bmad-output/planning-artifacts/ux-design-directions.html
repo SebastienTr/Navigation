@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bosco — Design Directions</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0F172A; color: #F8FAFC; }
+
+  /* Navigation */
+  .nav { position: sticky; top: 0; z-index: 100; background: #1E293B; border-bottom: 1px solid #334155; padding: 16px 24px; display: flex; gap: 12px; overflow-x: auto; }
+  .nav button { padding: 10px 20px; border-radius: 9999px; border: 1px solid #334155; background: transparent; color: #94A3B8; font-size: 14px; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
+  .nav button.active { background: #0EA5E9; color: white; border-color: #0EA5E9; }
+  .nav button:hover { border-color: #0EA5E9; color: #F8FAFC; }
+
+  /* Sections */
+  .section { display: none; padding: 24px; }
+  .section.active { display: block; }
+  .section h2 { font-size: 24px; margin-bottom: 8px; }
+  .section .subtitle { color: #94A3B8; margin-bottom: 32px; font-size: 16px; }
+
+  /* Phone Frame */
+  .phone-row { display: flex; gap: 32px; flex-wrap: wrap; justify-content: center; margin-bottom: 48px; }
+  .phone-container { text-align: center; }
+  .phone-label { font-size: 14px; color: #94A3B8; margin-bottom: 12px; }
+  .phone { width: 375px; height: 812px; background: #0F172A; border-radius: 40px; border: 3px solid #334155; overflow: hidden; position: relative; }
+  .phone.light { background: #FFFFFF; }
+  .phone.light .status-bar { color: #0F172A; }
+
+  /* Status Bar */
+  .status-bar { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; font-size: 12px; color: #F8FAFC; font-weight: 600; }
+
+  /* Bottom Nav */
+  .bottom-nav { position: absolute; bottom: 0; left: 0; right: 0; height: 83px; background: #1E293B; border-top: 1px solid #334155; display: flex; align-items: flex-start; padding-top: 8px; }
+  .phone.light .bottom-nav { background: #FFFFFF; border-top-color: #E2E8F0; }
+  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10px; color: #64748B; }
+  .nav-item.active { color: #0EA5E9; }
+  .nav-icon { width: 24px; height: 24px; border-radius: 4px; background: currentColor; opacity: 0.3; }
+  .nav-item.active .nav-icon { opacity: 1; }
+
+  /* Scrollable content */
+  .phone-content { height: calc(100% - 44px - 83px); overflow-y: auto; }
+  .phone-content::-webkit-scrollbar { display: none; }
+
+  /* ===== DIRECTION A: Verdict Immersive ===== */
+  .verdict-immersive { padding: 0; }
+  .verdict-hero-a { padding: 32px 24px 24px; text-align: center; min-height: 280px; display: flex; flex-direction: column; justify-content: center; }
+  .verdict-hero-a.go { background: linear-gradient(180deg, rgba(22,163,74,0.25) 0%, transparent 100%); }
+  .verdict-hero-a.standby { background: linear-gradient(180deg, rgba(217,119,6,0.25) 0%, transparent 100%); }
+  .verdict-hero-a.nogo { background: linear-gradient(180deg, rgba(220,38,38,0.25) 0%, transparent 100%); }
+  .verdict-word { font-size: 48px; font-weight: 800; letter-spacing: 2px; }
+  .verdict-word.go { color: #16A34A; }
+  .verdict-word.standby { color: #D97706; }
+  .verdict-word.nogo { color: #DC2626; }
+  .verdict-confidence { font-size: 14px; color: #94A3B8; margin-top: 8px; }
+  .verdict-time { font-size: 12px; color: #64748B; margin-top: 4px; }
+  .verdict-route { font-size: 16px; color: #F8FAFC; margin-bottom: 12px; font-weight: 600; }
+
+  /* Cards */
+  .card { background: #1E293B; border-radius: 12px; padding: 16px; margin: 0 16px 12px; }
+  .card.light { background: #F8FAFC; }
+  .phone.light .card { background: #F8FAFC; border: 1px solid #E2E8F0; }
+  .card-title { font-size: 14px; color: #94A3B8; margin-bottom: 8px; font-weight: 500; }
+  .phone.light .card-title { color: #64748B; }
+
+  /* Weather strip */
+  .weather-strip { display: flex; gap: 16px; justify-content: center; padding: 12px 16px; }
+  .weather-item { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+  .weather-value { font-weight: 600; }
+  .weather-icon { font-size: 16px; }
+
+  /* Level bars */
+  .level-row { display: flex; gap: 12px; margin-top: 8px; }
+  .level-item { flex: 1; }
+  .level-label { font-size: 12px; color: #94A3B8; margin-bottom: 4px; }
+  .level-bar { height: 8px; background: #334155; border-radius: 4px; overflow: hidden; }
+  .level-fill { height: 100%; border-radius: 4px; }
+  .level-fill.full { width: 100%; background: #0EA5E9; }
+  .level-fill.three-quarter { width: 75%; background: #0EA5E9; }
+  .level-fill.half { width: 50%; background: #D97706; }
+
+  /* Route step card */
+  .route-step { display: flex; align-items: center; gap: 12px; }
+  .route-dot { width: 12px; height: 12px; border-radius: 50%; background: #0EA5E9; flex-shrink: 0; }
+  .route-info { flex: 1; }
+  .route-name { font-size: 14px; font-weight: 500; color: #F8FAFC; }
+  .phone.light .route-name { color: #0F172A; }
+  .route-detail { font-size: 12px; color: #94A3B8; }
+  .route-badge { font-size: 11px; background: #334155; padding: 2px 8px; border-radius: 9999px; color: #94A3B8; }
+
+  /* Mate message */
+  .mate-msg { padding: 12px; background: #0EA5E9/10; border-left: 3px solid #0EA5E9; border-radius: 0 8px 8px 0; margin: 0 16px 12px; font-size: 14px; color: #94A3B8; }
+
+  /* ===== DIRECTION B: Command Center ===== */
+  .verdict-compact { padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+  .verdict-compact .verdict-word { font-size: 32px; }
+  .verdict-compact-info { flex: 1; }
+  .verdict-compact-route { font-size: 14px; color: #F8FAFC; font-weight: 500; }
+  .verdict-compact-sub { font-size: 12px; color: #94A3B8; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 16px; margin-bottom: 12px; }
+  .grid-2 .card { margin: 0; }
+  .metric-value { font-size: 20px; font-weight: 700; color: #F8FAFC; }
+  .phone.light .metric-value { color: #0F172A; }
+  .metric-unit { font-size: 12px; color: #94A3B8; }
+  .metric-trend { font-size: 14px; margin-left: 4px; }
+  .trend-up { color: #D97706; }
+  .trend-stable { color: #16A34A; }
+  .trend-down { color: #0EA5E9; }
+
+  /* Mini map placeholder */
+  .mini-map { height: 120px; background: #1a2744; border-radius: 12px; margin: 0 16px 12px; display: flex; align-items: center; justify-content: center; color: #334155; font-size: 14px; position: relative; overflow: hidden; }
+  .map-route { position: absolute; top: 20%; left: 10%; width: 80%; height: 2px; background: #0EA5E9; transform: rotate(-5deg); }
+  .map-dot { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: #0EA5E9; }
+  .map-dot.current { top: 18%; left: 10%; box-shadow: 0 0 8px #0EA5E9; }
+  .map-dot.dest { top: 22%; left: 88%; background: #94A3B8; }
+
+  /* ===== DIRECTION C: Card Stack ===== */
+  .stack-card { margin: 0 16px 16px; border-radius: 16px; overflow: hidden; }
+  .stack-verdict { padding: 24px; text-align: center; min-height: 160px; display: flex; flex-direction: column; justify-content: center; }
+  .stack-verdict.go { background: linear-gradient(135deg, #052E16 0%, #16A34A/20 100%); border: 1px solid #16A34A/30; }
+  .stack-weather { background: #1E293B; padding: 20px; }
+  .stack-weather-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; text-align: center; }
+  .stack-weather-value { font-size: 20px; font-weight: 700; }
+  .stack-weather-label { font-size: 11px; color: #64748B; margin-top: 2px; }
+  .stack-weather-icon { font-size: 20px; margin-bottom: 4px; }
+
+  /* ===== Chat Screens ===== */
+  .chat-messages { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .chat-bubble { max-width: 85%; padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.5; }
+  .chat-user { background: #0EA5E9; color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+  .chat-ai { background: #1E293B; color: #F8FAFC; align-self: flex-start; border-bottom-left-radius: 4px; }
+  .phone.light .chat-ai { background: #F1F5F9; color: #0F172A; }
+  .chat-action { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #052E16; border-radius: 8px; margin-top: 8px; font-size: 12px; color: #16A34A; }
+  .phone.light .chat-action { background: #F0FDF4; }
+  .chat-action-icon { width: 16px; height: 16px; }
+  .chat-input-bar { position: absolute; bottom: 83px; left: 0; right: 0; padding: 8px 16px; background: #1E293B; border-top: 1px solid #334155; display: flex; gap: 8px; align-items: center; }
+  .phone.light .chat-input-bar { background: #FFFFFF; border-top-color: #E2E8F0; }
+  .chat-input { flex: 1; height: 40px; border-radius: 20px; background: #334155; border: none; padding: 0 16px; color: #F8FAFC; font-size: 14px; }
+  .phone.light .chat-input { background: #F1F5F9; color: #0F172A; }
+  .chat-send { width: 40px; height: 40px; border-radius: 50%; background: #0EA5E9; border: none; color: white; font-size: 18px; cursor: pointer; }
+  .chip-row { display: flex; gap: 8px; padding: 8px 16px; overflow-x: auto; }
+  .chip { padding: 6px 14px; border-radius: 9999px; background: #334155; color: #94A3B8; font-size: 12px; white-space: nowrap; border: 1px solid #475569; }
+  .phone.light .chip { background: #F1F5F9; color: #64748B; border-color: #E2E8F0; }
+
+  /* ===== Log Screen ===== */
+  .log-form { padding: 16px; }
+  .form-label { font-size: 14px; color: #94A3B8; margin-bottom: 8px; font-weight: 500; }
+  .form-group { margin-bottom: 20px; }
+  .type-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .type-chip { padding: 10px 16px; border-radius: 9999px; background: #334155; color: #94A3B8; font-size: 13px; border: 1px solid #475569; min-height: 40px; display: flex; align-items: center; }
+  .type-chip.selected { background: #0EA5E9; color: white; border-color: #0EA5E9; }
+  .phone.light .type-chip { background: #F1F5F9; color: #64748B; border-color: #E2E8F0; }
+  .phone.light .type-chip.selected { background: #0EA5E9; color: white; border-color: #0EA5E9; }
+  .level-selector { display: flex; gap: 4px; }
+  .level-seg { flex: 1; height: 48px; border-radius: 8px; background: #334155; border: 1px solid #475569; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #94A3B8; }
+  .level-seg.filled { background: #0EA5E9/20; border-color: #0EA5E9; color: #0EA5E9; }
+  .phone.light .level-seg { background: #F1F5F9; border-color: #E2E8F0; color: #64748B; }
+  .phone.light .level-seg.filled { background: #F0F9FF; border-color: #0EA5E9; color: #0EA5E9; }
+  .position-display { padding: 12px 16px; background: #334155; border-radius: 8px; font-size: 14px; color: #F8FAFC; display: flex; justify-content: space-between; align-items: center; }
+  .phone.light .position-display { background: #F1F5F9; color: #0F172A; }
+  .position-gps { font-size: 12px; color: #16A34A; }
+  .save-btn { width: 100%; height: 48px; border-radius: 12px; background: #0EA5E9; color: white; font-size: 16px; font-weight: 600; border: none; cursor: pointer; margin-top: 8px; }
+
+  /* Comparison table */
+  .comparison { margin: 32px 0; overflow-x: auto; }
+  .comparison table { width: 100%; border-collapse: collapse; min-width: 600px; }
+  .comparison th { text-align: left; padding: 12px 16px; background: #1E293B; color: #94A3B8; font-weight: 500; font-size: 13px; border-bottom: 1px solid #334155; }
+  .comparison td { padding: 12px 16px; border-bottom: 1px solid #1E293B; font-size: 14px; }
+  .comparison tr:hover { background: #1E293B/50; }
+  .check { color: #16A34A; }
+  .partial { color: #D97706; }
+  .cross { color: #DC2626; }
+
+  /* Notes */
+  .direction-notes { background: #1E293B; border-radius: 12px; padding: 20px; margin: 24px 0; }
+  .direction-notes h3 { font-size: 16px; margin-bottom: 8px; }
+  .direction-notes p { color: #94A3B8; font-size: 14px; line-height: 1.6; }
+  .direction-notes ul { color: #94A3B8; font-size: 14px; line-height: 1.8; padding-left: 20px; }
+
+  .recommended { display: inline-block; padding: 4px 12px; background: #16A34A/20; color: #16A34A; border-radius: 9999px; font-size: 12px; font-weight: 600; margin-left: 8px; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <button class="active" onclick="showSection('overview')">Vue d'ensemble</button>
+  <button onclick="showSection('dir-a')">A: Verdict Immersif</button>
+  <button onclick="showSection('dir-b')">B: Command Center</button>
+  <button onclick="showSection('dir-c')">C: Card Stack</button>
+  <button onclick="showSection('chat')">Chat (commun)</button>
+  <button onclick="showSection('log')">Journal (commun)</button>
+  <button onclick="showSection('compare')">Comparaison</button>
+</nav>
+
+<!-- OVERVIEW -->
+<section class="section active" id="overview">
+  <h2>Bosco — Design Directions</h2>
+  <p class="subtitle">3 directions pour le dashboard (l'écran le plus critique), plus les écrans communs Chat et Journal.</p>
+
+  <div class="direction-notes">
+    <h3>Contexte</h3>
+    <p>Le dashboard est l'écran que le capitaine voit chaque matin. C'est LE moment qui définit le produit. Les 3 directions explorent différents équilibres entre impact émotionnel et densité d'information.</p>
+    <ul>
+      <li><strong>Direction A "Verdict Immersif"</strong> — Le verdict domine. Maximum d'impact émotionnel, minimum de distraction. L'info secondaire est sous le fold.</li>
+      <li><strong>Direction B "Command Center"</strong> — Le verdict est compact, entouré de données. Plus dense, plus informatif, moins émotionnel. Comme un tableau de bord d'instruments.</li>
+      <li><strong>Direction C "Card Stack"</strong> — Chaque bloc d'info est une carte autonome dans un flux vertical. Verdict en premier, puis météo, puis route, etc. Style moderne "mobile-native".</li>
+    </ul>
+  </div>
+</section>
+
+<!-- DIRECTION A: Verdict Immersive -->
+<section class="section" id="dir-a">
+  <h2>Direction A: Verdict Immersif <span class="recommended">Recommandé</span></h2>
+  <p class="subtitle">Le verdict remplit l'écran. Impact émotionnel maximum. Détails sous le fold.</p>
+
+  <div class="phone-row">
+    <!-- Dark mode GO -->
+    <div class="phone-container">
+      <div class="phone-label">Dark mode — GO</div>
+      <div class="phone">
+        <div class="status-bar"><span>9:41</span><span>●●● WiFi 🔋</span></div>
+        <div class="phone-content verdict-immersive">
+          <div class="verdict-hero-a go">
+            <div class="verdict-route">Audierne → Nice</div>
+            <div class="verdict-word go">GO</div>
+            <div class="verdict-confidence">Confiance haute</div>
+            <div class="verdict-time">Briefing de 05:12</div>
+          </div>
+          <div class="weather-strip">
+            <div class="weather-item"><span class="weather-icon">💨</span> <span class="weather-value">12 kn</span> SO</div>
+            <div class="weather-item"><span class="weather-icon">🌊</span> <span class="weather-value">1.2m</span> 8s</div>
+            <div class="weather-item"><span class="weather-icon">👁</span> <span class="weather-value">24km</span></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Prochaine étape</div>
+            <div class="route-step">
+              <div class="route-dot"></div>
+              <div class="route-info">
+                <div class="route-name">Audierne → Concarneau</div>
+                <div class="route-detail">30 NM · ~7h · Maritime</div>
+              </div>
+              <div class="route-badge">0/18</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Niveaux</div>
+            <div class="level-row">
+              <div class="level-item">
+                <div class="level-label">⛽ Carburant</div>
+                <div class="level-bar"><div class="level-fill full"></div></div>
+              </div>
+              <div class="level-item">
+                <div class="level-label">💧 Eau douce</div>
+                <div class="level-bar"><div class="level-fill three-quarter"></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="mini-map">
+            <div class="map-route"></div>
+            <div class="map-dot current"></div>
+            <div class="map-dot dest"></div>
+          </div>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item active"><div class="nav-icon"></div>Accueil</div>
+          <div class="nav-item"><div class="nav-icon"></div>Route</div>
+          <div class="nav-item"><div class="nav-icon"></div>Journal</div>
+          <div class="nav-item"><div class="nav-icon"></div>Chat</div>
+          <div class="nav-item"><div class="nav-icon"></div>Plus</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dark mode NO-GO -->
+    <div class="phone-container">
+      <div class="phone-label">Dark mode — NO-GO</div>
+      <div class="phone">
+        <div class="status-bar"><span>9:41</span><span>●●● WiFi 🔋</span></div>
+        <div class="phone-content verdict-immersive">
+          <div class="verdict-hero-a nogo">
+            <div class="verdict-route">Audierne → Nice</div>
+            <div class="verdict-word nogo">NO-GO</div>
+            <div class="verdict-confidence">Confiance haute · Avis de grand frais</div>
+            <div class="verdict-time">Briefing de 05:12</div>
+          </div>
+          <div class="weather-strip">
+            <div class="weather-item"><span class="weather-icon">💨</span> <span class="weather-value" style="color:#DC2626">35 kn</span> O</div>
+            <div class="weather-item"><span class="weather-icon">🌊</span> <span class="weather-value" style="color:#DC2626">3.5m</span> 6s</div>
+            <div class="weather-item"><span class="weather-icon">👁</span> <span class="weather-value" style="color:#D97706">8km</span></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Prochaine fenêtre</div>
+            <div style="font-size:14px;color:#94A3B8;line-height:1.5">Accalmie prévue mercredi matin. Vent passant SO 10-15 kn, mer résiduelle 1.5m.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">En attendant...</div>
+            <div style="font-size:14px;color:#94A3B8;line-height:1.5">• Checklist sécurité : 3 items critiques restants<br>• Révision feux de navigation<br>• Vérification mouillage</div>
+          </div>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item active"><div class="nav-icon"></div>Accueil</div>
+          <div class="nav-item"><div class="nav-icon"></div>Route</div>
+          <div class="nav-item"><div class="nav-icon"></div>Journal</div>
+          <div class="nav-item"><div class="nav-icon"></div>Chat</div>
+          <div class="nav-item"><div class="nav-icon"></div>Plus</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Light mode GO -->
+    <div class="phone-container">
+      <div class="phone-label">Light mode — GO</div>
+      <div class="phone light">
+        <div class="status-bar"><span>9:41</span><span>●●● WiFi 🔋</span></div>
+        <div class="phone-content verdict-immersive">
+          <div class="verdict-hero-a go">
+            <div class="verdict-route" style="color:#0F172A">Audierne → Nice</div>
+            <div class="verdict-word go">GO</div>
+            <div class="verdict-confidence">Confiance haute</div>
+            <div class="verdict-time">Briefing de 05:12</div>
+          </div>
+          <div class="weather-strip">
+            <div class="weather-item" style="color:#0F172A"><span class="weather-icon">💨</span> <span class="weather-value">12 kn</span> SO</div>
+            <div class="weather-item" style="color:#0F172A"><span class="weather-icon">🌊</span> <span class="weather-value">1.2m</span> 8s</div>
+            <div class="weather-item" style="color:#0F172A"><span class="weather-icon">👁</span> <span class="weather-value">24km</span></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Prochaine étape</div>
+            <div class="route-step">
+              <div class="route-dot"></div>
+              <div class="route-info">
+                <div class="route-name">Audierne → Concarneau</div>
+                <div class="route-detail">30 NM · ~7h · Maritime</div>
+              </div>
+              <div class="route-badge" style="background:#E2E8F0;color:#64748B">0/18</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Niveaux</div>
+            <div class="level-row">
+              <div class="level-item">
+                <div class="level-label">⛽ Carburant</div>
+                <div class="level-bar" style="background:#E2E8F0"><div class="level-fill full"></div></div>
+              </div>
+              <div class="level-item">
+                <div class="level-label">💧 Eau douce</div>
+                <div class="level-bar" style="background:#E2E8F0"><div class="level-fill three-quarter"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item active"><div class="nav-icon"></div>Accueil</div>
+          <div class="nav-item"><div class="nav-icon"></div>Route</div>
+          <div class="nav-item"><div class="nav-icon"></div>Journal</div>
+          <div class="nav-item"><div class="nav-icon"></div>Chat</div>
+          <div class="nav-item"><div class="nav-icon"></div>Plus</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="direction-notes">
+    <h3>Pourquoi cette direction est recommandée</h3>
+    <ul>
+      <li>Le verdict est visible en < 2 secondes, lisible à 2 mètres — correspond exactement au "10-second rule"</li>
+      <li>Le gradient de couleur communique l'émotion avant même de lire le texte</li>
+      <li>L'info secondaire (météo, niveaux, route) est accessible par scroll, pas en compétition visuelle</li>
+      <li>Pattern Apple Weather prouvé : hero data + progressive scroll</li>
+      <li>Supporte naturellement les 3 états émotionnels : confiance (GO), prudence (STANDBY), acceptation (NO-GO)</li>
+    </ul>
+  </div>
+</section>
+
+<!-- DIRECTION B: Command Center -->
+<section class="section" id="dir-b">
+  <h2>Direction B: Command Center</h2>
+  <p class="subtitle">Dashboard dense type "tableau de bord". Plus d'information visible immédiatement.</p>
+
+  <div class="phone-row">
+    <div class="phone-container">
+      <div class="phone-label">Dark mode — GO</div>
+      <div class="phone">
+        <div class="status-bar"><span>9:41</span><span>●●● WiFi 🔋</span></div>
+        <div class="phone-content">
+          <div class="verdict-compact" style="background: linear-gradient(90deg, rgba(22,163,74,0.15) 0%, transparent 100%); border-bottom: 1px solid #334155;">
+            <div class="verdict-word go" style="font-size:32px">GO</div>
+            <div class="verdict-compact-info">
+              <div class="verdict-compact-route">Audierne → Nice</div>
+              <div class="verdict-compact-sub">Confiance haute · 05:12</div>
+            </div>
+          </div>
+          <div class="grid-2" style="margin-top:12px">
+            <div class="card" style="margin:0">
+              <div class="card-title">💨 Vent</div>
+              <div class="metric-value">12 kn <span class="metric-trend trend-stable">→</span></div>
+              <div class="metric-unit">Sud-Ouest</div>
+            </div>
+            <div class="card" style="margin:0">
+              <div class="card-title">🌊 Mer</div>
+              <div class="metric-value">1.2m <span class="metric-trend trend-down">↘</span></div>
+              <div class="metric-unit">Période 8s</div>
+            </div>
+            <div class="card" style="margin:0">
+              <div class="card-title">⛽ Carburant</div>
+              <div class="metric-value" style="color:#0EA5E9">Plein</div>
+              <div class="metric-unit">~40h moteur</div>
+            </div>
+            <div class="card" style="margin:0">
+              <div class="card-title">💧 Eau</div>
+              <div class="metric-value" style="color:#0EA5E9">3/4</div>
+              <div class="metric-unit">OK pour 3 jours</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Prochaine étape</div>
+            <div class="route-step">
+              <div class="route-dot"></div>
+              <div class="route-info">
+                <div class="route-name">Audierne → Concarneau</div>
+                <div class="route-detail">30 NM · ~7h · Étape 0/18 · 828 NM restants</div>
+              </div>
+            </div>
+          </div>
+          <div class="mini-map">
+            <div class="map-route"></div>
+            <div class="map-dot current"></div>
+            <div class="map-dot dest"></div>
+          </div>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item active"><div class="nav-icon"></div>Accueil</div>
+          <div class="nav-item"><div class="nav-icon"></div>Route</div>
+          <div class="nav-item"><div class="nav-icon"></div>Journal</div>
+          <div class="nav-item"><div class="nav-icon"></div>Chat</div>
+          <div class="nav-item"><div class="nav-icon"></div>Plus</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="direction-notes">
+    <h3>Forces et faiblesses</h3>
+    <ul>
+      <li>✅ Plus d'info visible sans scroller — pratique au mouillage quand on a le temps</li>
+      <li>✅ Grid 2x2 donne un aperçu complet des métriques</li>
+      <li>❌ Le verdict est compressé — perd l'impact émotionnel du "hero moment"</li>
+      <li>❌ Trop dense pour le cockpit — charge cognitive élevée avec 6+ data points visibles</li>
+      <li>❌ Ressemble plus à un dashboard technique qu'à un "second de bord"</li>
+    </ul>
+  </div>
+</section>
+
+<!-- DIRECTION C: Card Stack -->
+<section class="section" id="dir-c">
+  <h2>Direction C: Card Stack</h2>
+  <p class="subtitle">Flux de cartes autonomes. Chaque section est un bloc distinct.</p>
+
+  <div class="phone-row">
+    <div class="phone-container">
+      <div class="phone-label">Dark mode — GO</div>
+      <div class="phone">
+        <div class="status-bar"><span>9:41</span><span>●●● WiFi 🔋</span></div>
+        <div class="phone-content" style="padding:16px">
+          <div class="stack-card">
+            <div class="stack-verdict go" style="border-radius:16px;border:1px solid rgba(22,163,74,0.3)">
+              <div style="font-size:14px;color:#94A3B8;margin-bottom:4px">Audierne → Nice</div>
+              <div class="verdict-word go" style="font-size:40px">GO</div>
+              <div style="font-size:13px;color:#94A3B8;margin-top:6px">Confiance haute · Briefing 05:12</div>
+            </div>
+          </div>
+          <div class="stack-card" style="border-radius:16px;margin-top:-4px">
+            <div class="stack-weather" style="border-radius:16px">
+              <div class="stack-weather-grid">
+                <div>
+                  <div class="stack-weather-icon">💨</div>
+                  <div class="stack-weather-value">12 kn</div>
+                  <div class="stack-weather-label">Vent SO</div>
+                </div>
+                <div>
+                  <div class="stack-weather-icon">🌊</div>
+                  <div class="stack-weather-value">1.2m</div>
+                  <div class="stack-weather-label">Vagues 8s</div>
+                </div>
+                <div>
+                  <div class="stack-weather-icon">👁</div>
+                  <div class="stack-weather-value">24km</div>
+                  <div class="stack-weather-label">Visibilité</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="border-radius:16px">
+            <div class="route-step">
+              <div class="route-dot"></div>
+              <div class="route-info">
+                <div class="route-name">Audierne → Concarneau</div>
+                <div class="route-detail">30 NM · ~7h · Maritime</div>
+              </div>
+              <div class="route-badge">0/18</div>
+            </div>
+          </div>
+          <div class="card" style="border-radius:16px">
+            <div class="level-row">
+              <div class="level-item">
+                <div class="level-label">⛽ Plein</div>
+                <div class="level-bar"><div class="level-fill full"></div></div>
+              </div>
+              <div class="level-item">
+                <div class="level-label">💧 3/4</div>
+                <div class="level-bar"><div class="level-fill three-quarter"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item active"><div class="nav-icon"></div>Accueil</div>
+          <div class="nav-item"><div class="nav-icon"></div>Route</div>
+          <div class="nav-item"><div class="nav-icon"></div>Journal</div>
+          <div class="nav-item"><div class="nav-icon"></div>Chat</div>
+          <div class="nav-item"><div class="nav-icon"></div>Plus</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="direction-notes">
+    <h3>Forces et faiblesses</h3>
+    <ul>
+      <li>✅ Chaque carte est autonome et claire</li>
+      <li>✅ Style moderne "mobile-native", très clean</li>
+      <li>✅ Facile à réorganiser ou ajouter des cartes</li>
+      <li>❌ Le verdict perd de l'impact dans une carte parmi d'autres</li>
+      <li>❌ Les gaps entre cartes gaspillent de l'espace vertical</li>
+      <li>❌ Pas de hiérarchie émotionnelle forte — tout a le même poids visuel</li>
+    </ul>
+  </div>
+</section>
+
+<!-- CHAT -->
+<section class="section" id="chat">
+  <h2>Chat — Design commun</h2>
+  <p class="subtitle">Interface de chat avec actions agentic visibles. Identique quelle que soit la direction dashboard.</p>
+
+  <div class="phone-row">
+    <div class="phone-container">
+      <div class="phone-label">Dark mode — Conversation avec actions</div>
+      <div class="phone">
+        <div class="status-bar"><span>9:41</span><span>●●● WiFi 🔋</span></div>
+        <div class="phone-content" style="padding-bottom: 100px;">
+          <div class="chip-row">
+            <div class="chip">Briefing du jour</div>
+            <div class="chip">Météo Concarneau</div>
+            <div class="chip">État du bateau</div>
+          </div>
+          <div class="chat-messages">
+            <div class="chat-bubble chat-user">Arrivés à Concarneau, 3/4 carburant, RAS. Le pilote auto a l'air de remarcher.</div>
+            <div class="chat-bubble chat-ai">
+              Bien noté ton arrivée à Concarneau !
+              <div class="chat-action">✅ Log créé — Arrivée à Concarneau</div>
+              <div class="chat-action">✅ Route — Étape 1 terminée (Audierne → Concarneau)</div>
+              <div class="chat-action">✅ Position mise à jour — Concarneau</div>
+              <div class="chat-action">✅ Carburant — 3/4</div>
+              <div class="chat-action">✅ Checklist — Pilote auto coché ✓</div>
+              <div style="margin-top:12px">Bonne nouvelle pour le pilote ! Ta prochaine étape sera Concarneau → Lorient, 28 NM (~6h). Tu veux que je regarde la météo pour demain ?</div>
+            </div>
+          </div>
+        </div>
+        <div class="chat-input-bar">
+          <input class="chat-input" placeholder="Parlez à votre second..." readonly>
+          <button class="chat-send">↑</button>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item"><div class="nav-icon"></div>Accueil</div>
+          <div class="nav-item"><div class="nav-icon"></div>Route</div>
+          <div class="nav-item"><div class="nav-icon"></div>Journal</div>
+          <div class="nav-item active"><div class="nav-icon"></div>Chat</div>
+          <div class="nav-item"><div class="nav-icon"></div>Plus</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phone-container">
+      <div class="phone-label">Light mode — Conversation</div>
+      <div class="phone light">
+        <div class="status-bar"><span>9:41</span><span>●●● WiFi 🔋</span></div>
+        <div class="phone-content" style="padding-bottom: 100px;">
+          <div class="chip-row">
+            <div class="chip">Briefing du jour</div>
+            <div class="chip">Météo Lorient</div>
+            <div class="chip">Log rapide</div>
+          </div>
+          <div class="chat-messages">
+            <div class="chat-bubble chat-user">Et si je pars à 14h plutôt que 8h demain ?</div>
+            <div class="chat-bubble chat-ai">
+              Partir à 14h c'est faisable mais pas idéal. Le vent tourne NO en fin d'après-midi (17h), tu aurais ~3h de nav confortable avant de l'avoir dans le nez.
+              <br><br>
+              <strong>Option 14h :</strong> Arrivée Lorient ~20h, les 2 dernières heures au moteur face au vent. Nuit tombée.
+              <br><br>
+              <strong>Ma recommandation :</strong> Départ 8h avec la marée descendante. Arrivée ~14h, tu profites de Lorient en journée.
+              <br><br>
+              Tu veux que je mette un rappel pour demain 7h ?
+            </div>
+          </div>
+        </div>
+        <div class="chat-input-bar">
+          <input class="chat-input" placeholder="Parlez à votre second..." readonly>
+          <button class="chat-send">↑</button>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item"><div class="nav-icon"></div>Accueil</div>
+          <div class="nav-item"><div class="nav-icon"></div>Route</div>
+          <div class="nav-item"><div class="nav-icon"></div>Journal</div>
+          <div class="nav-item active"><div class="nav-icon"></div>Chat</div>
+          <div class="nav-item"><div class="nav-icon"></div>Plus</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="direction-notes">
+    <h3>Design chat — Points clés</h3>
+    <ul>
+      <li>Les ActionCards remplacent les badges bruts du POC — résumés humains avec icônes de statut</li>
+      <li>Les suggestion chips sont contextuels (changent selon la dernière conversation/position)</li>
+      <li>Le texte de l'IA est conversationnel, utilise le tutoiement, fait référence au bateau par son nom</li>
+      <li>Les actions multiples sont groupées visuellement, pas éclatées en badges individuels</li>
+    </ul>
+  </div>
+</section>
+
+<!-- LOG -->
+<section class="section" id="log">
+  <h2>Journal — Design commun</h2>
+  <p class="subtitle">Formulaire de log optimisé cockpit : 3 taps, zéro frustration.</p>
+
+  <div class="phone-row">
+    <div class="phone-container">
+      <div class="phone-label">Dark mode — Nouvelle entrée</div>
+      <div class="phone">
+        <div class="status-bar"><span>9:41</span><span>●●● WiFi 🔋</span></div>
+        <div class="phone-content">
+          <div style="padding:16px 24px;font-size:20px;font-weight:600">Nouvelle entrée</div>
+          <div class="log-form">
+            <div class="form-group">
+              <div class="form-label">Position</div>
+              <div class="position-display">
+                Concarneau <span class="position-gps">📍 GPS</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="form-label">Type d'entrée</div>
+              <div class="type-chips">
+                <div class="type-chip">Navigation</div>
+                <div class="type-chip selected">Arrivée</div>
+                <div class="type-chip">Départ</div>
+                <div class="type-chip">Maintenance</div>
+                <div class="type-chip">Incident</div>
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="form-label">⛽ Carburant</div>
+              <div class="level-selector">
+                <div class="level-seg filled">Plein</div>
+                <div class="level-seg filled">3/4</div>
+                <div class="level-seg">Moitié</div>
+                <div class="level-seg">1/4</div>
+                <div class="level-seg">Rés.</div>
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="form-label">💧 Eau douce</div>
+              <div class="level-selector">
+                <div class="level-seg filled">Plein</div>
+                <div class="level-seg filled">3/4</div>
+                <div class="level-seg filled">Moitié</div>
+                <div class="level-seg">1/4</div>
+                <div class="level-seg">Rés.</div>
+              </div>
+            </div>
+            <button class="save-btn">Sauvegarder</button>
+          </div>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item"><div class="nav-icon"></div>Accueil</div>
+          <div class="nav-item"><div class="nav-icon"></div>Route</div>
+          <div class="nav-item active"><div class="nav-icon"></div>Journal</div>
+          <div class="nav-item"><div class="nav-icon"></div>Chat</div>
+          <div class="nav-item"><div class="nav-icon"></div>Plus</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phone-container">
+      <div class="phone-label">Light mode — Nouvelle entrée</div>
+      <div class="phone light">
+        <div class="status-bar"><span>9:41</span><span>●●● WiFi 🔋</span></div>
+        <div class="phone-content">
+          <div style="padding:16px 24px;font-size:20px;font-weight:600;color:#0F172A">Nouvelle entrée</div>
+          <div class="log-form">
+            <div class="form-group">
+              <div class="form-label" style="color:#64748B">Position</div>
+              <div class="position-display">
+                Concarneau <span class="position-gps">📍 GPS</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="form-label" style="color:#64748B">Type d'entrée</div>
+              <div class="type-chips">
+                <div class="type-chip">Navigation</div>
+                <div class="type-chip selected">Arrivée</div>
+                <div class="type-chip">Départ</div>
+                <div class="type-chip">Maintenance</div>
+                <div class="type-chip">Incident</div>
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="form-label" style="color:#64748B">⛽ Carburant</div>
+              <div class="level-selector">
+                <div class="level-seg filled">Plein</div>
+                <div class="level-seg filled">3/4</div>
+                <div class="level-seg">Moitié</div>
+                <div class="level-seg">1/4</div>
+                <div class="level-seg">Rés.</div>
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="form-label" style="color:#64748B">💧 Eau douce</div>
+              <div class="level-selector">
+                <div class="level-seg filled">Plein</div>
+                <div class="level-seg filled">3/4</div>
+                <div class="level-seg filled">Moitié</div>
+                <div class="level-seg">1/4</div>
+                <div class="level-seg">Rés.</div>
+              </div>
+            </div>
+            <button class="save-btn">Sauvegarder</button>
+          </div>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item"><div class="nav-icon"></div>Accueil</div>
+          <div class="nav-item"><div class="nav-icon"></div>Route</div>
+          <div class="nav-item active"><div class="nav-icon"></div>Journal</div>
+          <div class="nav-item"><div class="nav-icon"></div>Chat</div>
+          <div class="nav-item"><div class="nav-icon"></div>Plus</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COMPARISON -->
+<section class="section" id="compare">
+  <h2>Comparaison des directions</h2>
+  <p class="subtitle">Évaluation de chaque direction contre nos principes UX.</p>
+
+  <div class="comparison">
+    <table>
+      <thead>
+        <tr>
+          <th>Critère</th>
+          <th>A: Verdict Immersif</th>
+          <th>B: Command Center</th>
+          <th>C: Card Stack</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Verdict en < 10 sec</td>
+          <td class="check">★★★ Instantané</td>
+          <td class="partial">★★☆ Visible mais compact</td>
+          <td class="partial">★★☆ Présent mais parmi d'autres</td>
+        </tr>
+        <tr>
+          <td>Impact émotionnel</td>
+          <td class="check">★★★ Gradient plein écran</td>
+          <td class="cross">★☆☆ Trop utilitaire</td>
+          <td class="partial">★★☆ Correct mais sans immersion</td>
+        </tr>
+        <tr>
+          <td>Lisibilité cockpit</td>
+          <td class="check">★★★ Gros texte, peu d'éléments</td>
+          <td class="cross">★☆☆ Dense, petits textes</td>
+          <td class="check">★★★ Cartes lisibles</td>
+        </tr>
+        <tr>
+          <td>Densité d'information</td>
+          <td class="partial">★★☆ Sous le fold</td>
+          <td class="check">★★★ Tout visible</td>
+          <td class="partial">★★☆ Modérée</td>
+        </tr>
+        <tr>
+          <td>Une main, cockpit</td>
+          <td class="check">★★★ Scroll simple</td>
+          <td class="partial">★★☆ Taps précis sur grid</td>
+          <td class="check">★★★ Scroll simple</td>
+        </tr>
+        <tr>
+          <td>Offline / cache</td>
+          <td class="check">★★★ Verdict cached = OK</td>
+          <td class="check">★★★ Tout cached</td>
+          <td class="check">★★★ Tout cached</td>
+        </tr>
+        <tr>
+          <td>Progressive disclosure</td>
+          <td class="check">★★★ Hero → scroll → tap</td>
+          <td class="cross">★☆☆ Tout exposé d'emblée</td>
+          <td class="partial">★★☆ Cartes séquentielles</td>
+        </tr>
+        <tr>
+          <td><strong>Score total</strong></td>
+          <td class="check"><strong>19/21</strong></td>
+          <td class="partial"><strong>12/21</strong></td>
+          <td class="partial"><strong>16/21</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="direction-notes">
+    <h3>Recommandation</h3>
+    <p><strong>Direction A "Verdict Immersif"</strong> est la meilleure correspondance avec nos principes. Elle maximise le "hero moment" du verdict tout en offrant la progressive disclosure nécessaire pour les détails. C'est Apple Weather appliqué à la navigation.</p>
+    <p style="margin-top:12px">On pourrait emprunter à la Direction C le style de cartes arrondies (border-radius: 16px) et la météo en grid 3 colonnes pour les sections sous le fold.</p>
+  </div>
+</section>
+
+<script>
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+
+</body>
+</html>

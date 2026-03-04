@@ -12,11 +12,11 @@ export function Card({ children, className = '', onClick }: CardProps) {
   const hasCustomBg = /\bbg-/.test(className)
   return (
     <div
-      className={`rounded-lg border border-gray-200/60 p-4 shadow-[var(--shadow-sm)] transition-shadow duration-200 dark:border-gray-800/40 ${
-        hasCustomBg ? '' : 'bg-white dark:bg-gray-900'
+      className={`rounded-xl border border-gray-200/60 p-4 shadow-[var(--shadow-md)] transition-all duration-200 dark:border-gray-700/30 ${
+        hasCustomBg ? '' : 'bg-white dark:bg-gray-900/80'
       } ${
         onClick
-          ? 'cursor-pointer hover:shadow-[var(--shadow-md)] active:bg-gray-50 dark:active:bg-gray-800'
+          ? 'cursor-pointer hover:shadow-[var(--shadow-lg)] hover:border-gray-300/60 dark:hover:border-gray-600/40 active:scale-[0.99] active:bg-gray-50 dark:active:bg-gray-800'
           : ''
       } ${className}`}
       onClick={onClick}
